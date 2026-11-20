@@ -153,13 +153,17 @@ describe('GET /validations/:id', () => {
 });
 
 describe('cross-cutting', () => {
-  it('echoes a request id and answers unknown routes with the same error shape', async () => {
+  it('generates its own request id and answers unknown routes with the same error shape', async () => {
     const { app } = await setup();
 
-    const res = await app.inject({ method: 'GET', url: '/nope' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/nope',
+      headers: { 'x-request-id': 'admin-123' },
+    });
 
     expect(res.statusCode).toBe(404);
-    expect(res.headers['x-request-id']).toBeTruthy();
+    expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
     expect(res.json()).toMatchObject({ error: { code: 'ROUTE_NOT_FOUND' } });
   });
 });

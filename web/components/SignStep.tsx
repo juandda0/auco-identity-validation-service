@@ -10,6 +10,11 @@ function nextYear(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Accepts "1500000", "1.500.000" or "1.500.000,50" (Colombian format). */
+function parseAmount(value: string): number {
+  return Number(value.replace(/[^\d,]/g, '').replace(',', '.'));
+}
+
 function formatElapsed(ms: number): string {
   const total = Math.round(ms / 1000);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -53,7 +58,7 @@ export function SignStep({
     event.preventDefault();
     const created = await run(() =>
       api.createPromissoryNote(validationId, {
-        amount: Number(form.amount),
+        amount: parseAmount(form.amount),
         currency: form.currency,
         dueDate: form.dueDate,
         creditorName: form.creditorName,

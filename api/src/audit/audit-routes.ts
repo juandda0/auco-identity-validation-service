@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { countryCodeSchema, documentNumberSchema } from '../validations/schemas.js';
+import { AuditUnavailableError } from '../shared/errors.js';
+import {
+  countryCodeSchema,
+  documentNumberSchema,
+  errorResponseSchema,
+} from '../validations/schemas.js';
 import { documentKeyOf, type AuditRepository } from './audit-event.js';
 
 const auditEventSchema = z.object({
@@ -36,12 +41,17 @@ export const auditRoutes: FastifyPluginAsyncZod<{ audit: AuditRepository }> = as
         params: z.object({ countryCode: countryCodeSchema, documentNumber: documentNumberSchema }),
         response: {
           200: z.object({ documentKey: z.string(), events: z.array(auditEventSchema) }),
+          400: errorResponseSchema,
+          503: errorResponseSchema,
         },
       },
     },
     async (request) => {
       const documentKey = documentKeyOf(request.params.countryCode, request.params.documentNumber);
-      return { documentKey, events: await audit.listByDocument(documentKey) };
+      const events = await audit.listByDocument(documentKey).catch((error: unknown) => {
+        throw new AuditUnavailableError('Audit history is unavailable', { cause: error });
+      });
+      return { documentKey, events };
     },
   );
 };

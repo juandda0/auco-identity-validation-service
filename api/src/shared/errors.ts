@@ -27,10 +27,17 @@ export class ConflictError extends AppError {
   }
 }
 
-/** The external countries API says the country code does not exist. */
+/**
+ * The external countries API does not recognize the code. Usually it does not
+ * exist, but the World Bank API also omits a few real ISO codes (e.g. TW, AQ).
+ */
 export class CountryNotFoundError extends AppError {
   constructor(countryCode: string) {
-    super(422, 'COUNTRY_NOT_FOUND', `Country code ${countryCode} does not exist`);
+    super(
+      422,
+      'COUNTRY_NOT_FOUND',
+      `Country code ${countryCode} is not recognized by the countries API`,
+    );
   }
 }
 

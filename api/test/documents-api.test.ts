@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderPromissoryNote, sha256 } from '../src/documents/promissory-note.js';
 import { buildTestApp } from './support/build-test-app.js';
 import { COLOMBIA } from './support/fakes.js';
@@ -184,5 +184,32 @@ describe('POST /documents/:id/sign', () => {
     const { sign } = await setup();
 
     expect((await sign('0123456789abcdef01234567')).statusCode).toBe(404);
+  });
+});
+
+describe('promissory note body rules', () => {
+  it('accepts amounts with two decimals despite floating point (19.99, 0.07)', async () => {
+    const { promissoryNoteBodySchema } = await import('../src/documents/document-routes.js');
+    for (const amount of [19.99, 1.15, 0.29, 0.07]) {
+      expect(promissoryNoteBodySchema.safeParse({ ...note, amount }).success).toBe(true);
+    }
+    expect(promissoryNoteBodySchema.safeParse({ ...note, amount: 10.123 }).success).toBe(false);
+  });
+
+  it('compares the due date with today in Colombia, not in UTC', async () => {
+    const { promissoryNoteBodySchema } = await import('../src/documents/document-routes.js');
+    vi.useFakeTimers();
+    try {
+      // 20:00 in Colombia on 20-Nov is already 21-Nov in UTC.
+      vi.setSystemTime(new Date('2026-11-21T01:00:00Z'));
+      expect(promissoryNoteBodySchema.safeParse({ ...note, dueDate: '2026-11-21' }).success).toBe(
+        true,
+      );
+      expect(promissoryNoteBodySchema.safeParse({ ...note, dueDate: '2026-11-20' }).success).toBe(
+        false,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

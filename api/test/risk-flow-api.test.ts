@@ -128,3 +128,15 @@ describe('GET /audit/:countryCode/:documentNumber', () => {
     expect(res.json()).toEqual({ documentKey: 'CO#99999999', events: [] });
   });
 });
+
+describe('audit timeline failures', () => {
+  it('returns 503 AUDIT_UNAVAILABLE, not 500, when DynamoDB cannot be read', async () => {
+    const { app, audit } = await setup();
+    audit.failReads = true;
+
+    const res = await app.inject({ method: 'GET', url: '/audit/CO/1020304050' });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toMatchObject({ error: { code: 'AUDIT_UNAVAILABLE' } });
+  });
+});

@@ -11,7 +11,7 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Audit event in DynamoDB Local keyed by document and date | [`api/src/audit`](api/src/audit) |
 | Input validation | Zod schemas, [`schemas.ts`](api/src/validations/schemas.ts) |
 | External API error handling | [`countries.ts`](api/src/clients/countries.ts) |
-| At least 3 automated tests | 51 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
+| At least 3 automated tests | 54 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
 | README | this file |
 
 | Extra | Where |
@@ -124,7 +124,7 @@ Every error has the same shape: `{"error": {"code": "...", "message": "...", "de
 | 400 | `VALIDATION_ERROR` | Invalid body or id, with per-field `details` |
 | 404 | `NOT_FOUND` | No validation or document with that id |
 | 409 | `VALIDATION_NOT_APPROVED`, `ALREADY_SIGNED`, `DOCUMENT_TAMPERED` | Document rules |
-| 422 | `COUNTRY_NOT_FOUND` | The country code does not exist |
+| 422 | `COUNTRY_NOT_FOUND` | The countries API does not recognize the code |
 | 502 | `UPSTREAM_UNAVAILABLE` | Countries API failed (after one retry) |
 | 503 | `AUDIT_UNAVAILABLE` | DynamoDB failed; the MongoDB write was rolled back |
 | 504 | `UPSTREAM_TIMEOUT` | Countries API took longer than 3 s (after one retry) |
@@ -225,7 +225,7 @@ curl -X POST localhost:3000/documents/<documentId>/sign
 
 ```bash
 cd api && npm ci
-npm test                 # 51 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
+npm test                 # 54 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
 npm run lint && npm run typecheck
 
 docker compose up -d mongo dynamodb
@@ -262,6 +262,14 @@ scripts/demo.sh               curl tour of every scenario
 - **Compensation instead of a transaction.** MongoDB and DynamoDB cannot share one. A compensating delete is simple and testable; the trade-off is a short window in which a crash could leave a record without its event.
 - **Failed attempts are audited, upstream outages are not.** Otherwise a World Bank outage would block legitimate people.
 
+## Known limitations
+
+Found in a review pass and left on purpose, because they need authentication, which is out of scope:
+
+- **Failed attempts can be forged.** Anyone can send three invalid requests with someone else's document number and get that document `BLOCKED` for 24 hours. With per-company API keys, failures would be counted per caller.
+- **The audit timeline is public.** `GET /audit/...` returns names, phones and signing IPs for any document number. In production it would require authentication and an authorization check per company.
+- **The World Bank API omits a few real ISO codes** (e.g. `TW`, `AQ`), so they get `422 COUNTRY_NOT_FOUND` ("not recognized by the countries API").
+
 ## What I would improve with more time
 
 - **Idempotency** (`Idempotency-Key` header), so a retry or double click does not create two validations.
@@ -269,7 +277,7 @@ scripts/demo.sh               curl tour of every scenario
 - **Race on the risk check:** two simultaneous validations of the same document both read the history before either writes. A conditional write on a per-document counter would close it.
 - **Degraded mode:** store the validation with `enrichment: null` and retry in the background when the countries API is down, instead of rejecting it.
 - **Real deployment:** Lambda + API Gateway with IaC (SAM or CDK), structured logs and metrics per external call.
-- **Authentication and multi-tenancy** (per-company API keys), and a risk history shared between companies, in the spirit of AUCO's Identity Guardian.
+- **Authentication and multi-tenancy** (per-company API keys), which also closes the limitations above, and a risk history shared between companies, in the spirit of AUCO's Identity Guardian.
 - **PKI signature** and a certified timestamp instead of a recorded hash.
 - **Configurable risk thresholds**, and a review workflow to move a `REVIEW` to `APPROVED`.
 

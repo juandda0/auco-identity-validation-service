@@ -34,8 +34,9 @@ export interface AppDependencies {
 export async function buildApp(deps: AppDependencies, logger?: FastifyBaseLogger) {
   const app = Fastify({
     ...(logger ? { loggerInstance: logger } : { logger: false }),
+    // Always generated server-side: a client-chosen id would end up in every log line.
     genReqId: () => randomUUID(),
-    requestIdHeader: 'x-request-id',
+    requestIdHeader: false,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);

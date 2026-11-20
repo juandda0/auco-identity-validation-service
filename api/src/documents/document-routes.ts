@@ -4,12 +4,22 @@ import { errorResponseSchema, objectIdSchema } from '../validations/schemas.js';
 import type { DocumentRecord } from './document.js';
 import type { DocumentService } from './document-service.js';
 
-const promissoryNoteBodySchema = z.object({
+/** Today's date (YYYY-MM-DD) in Colombia; a UTC date would already be "tomorrow" after 19:00. */
+function todayInColombia(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+}
+
+/** 19.99 * 100 is 1998.9999999999998 in floating point, so compare with a tolerance. */
+function hasAtMostTwoDecimals(n: number): boolean {
+  return Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
+}
+
+export const promissoryNoteBodySchema = z.object({
   amount: z
     .number()
     .positive()
     .max(1_000_000_000_000)
-    .refine((n) => Number.isInteger(n * 100), 'must have at most 2 decimals'),
+    .refine(hasAtMostTwoDecimals, 'must have at most 2 decimals'),
   currency: z
     .string()
     .trim()
@@ -17,8 +27,8 @@ const promissoryNoteBodySchema = z.object({
     .regex(/^[A-Z]{3}$/, 'must be an ISO 4217 code such as COP')
     .refine(isSupportedCurrency, 'unknown currency')
     .default('COP'),
-  dueDate: z.iso.date().refine((d) => d > new Date().toISOString().slice(0, 10), {
-    message: 'must be a future date',
+  dueDate: z.iso.date().refine((d) => d > todayInColombia(), {
+    message: 'must be a future date (Colombia time)',
   }),
   creditorName: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(60).optional(),

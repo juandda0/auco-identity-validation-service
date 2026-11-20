@@ -54,12 +54,14 @@ export function inMemoryValidations(): ValidationRepository & {
 export function inMemoryAudit(): AuditRepository & {
   events: AuditEvent[];
   failNextAppend: boolean;
+  failReads: boolean;
 } {
   const events: AuditEvent[] = [];
   const sorted = (list: AuditEvent[]) => [...list].sort((a, b) => a.sk.localeCompare(b.sk));
   const repo = {
     events,
     failNextAppend: false,
+    failReads: false,
     async append(event: Parameters<AuditRepository['append']>[0]) {
       if (repo.failNextAppend) {
         repo.failNextAppend = false;
@@ -79,6 +81,7 @@ export function inMemoryAudit(): AuditRepository & {
       return item;
     },
     async listByDocument(documentKey: string) {
+      if (repo.failReads) throw new Error('DynamoDB is down');
       return sorted(events.filter((e) => e.documentKey === documentKey));
     },
     async listByPhone(phone: string) {
