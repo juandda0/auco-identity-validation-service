@@ -26,7 +26,7 @@ Port taken? Every host port can be changed: `API_PORT=3100 docker compose up --b
 curl -X POST localhost:3000/validations \
   -H 'content-type: application/json' \
   -d '{"name": "Ana Gómez", "documentNumber": "1020304050"}'
-# 201 {"id":"6b00d6a86152ee9615a08a52"}
+# 201 {"id":"6b00d6a86152ee9615a08a52","verdict":"APPROVED","reasons":[]}
 ```
 
 | Field | Required | Rules |
@@ -59,6 +59,26 @@ curl localhost:3000/validations/6b00d6a86152ee9615a08a52
   "createdAt": "2026-11-20T23:24:24.593Z"
 }
 ```
+
+### `GET /audit/:countryCode/:documentNumber`
+
+Timeline of every audit event of a document, oldest first (one DynamoDB `Query` on the partition key).
+
+```bash
+curl localhost:3000/audit/CO/1020304050
+```
+
+### Risk verdict
+
+Every validation gets a verdict, `APPROVED`, `REVIEW` or `BLOCKED`, with human-readable reasons. The rules are inspired by the fraud signals AUCO published in September 2026 and read the audit trail:
+
+| Signal | Rule | Verdict |
+|---|---|---|
+| `DOCUMENT_NAME_MISMATCH` | The document was validated before under another name (case and accents ignored) | `REVIEW` |
+| `SHARED_PHONE` | The phone is linked to other documents (phone GSI) | `REVIEW`, `BLOCKED` at 3 |
+| `REPEATED_FAILURES` | 3+ failed attempts for the document in the last 24 h | `BLOCKED` |
+
+A *failed attempt* is a request that identifies a document (valid number and country) but fails validation, or uses a country that does not exist. Upstream outages are not the person's fault and are not counted. Thresholds are arbitrary and live in `src/risk/risk-engine.ts`.
 
 ### Errors
 

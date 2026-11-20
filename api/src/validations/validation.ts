@@ -1,4 +1,5 @@
 import type { CountryInfo } from '../clients/countries.js';
+import type { RiskAssessment } from '../risk/risk-engine.js';
 
 export interface ValidationRecord {
   id: string;
@@ -8,6 +9,7 @@ export interface ValidationRecord {
   countryCode: string;
   phone: string | null;
   country: CountryInfo;
+  risk: RiskAssessment;
   createdAt: Date;
 }
 

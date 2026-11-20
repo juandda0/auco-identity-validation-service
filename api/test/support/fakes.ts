@@ -77,9 +77,8 @@ export function inMemoryAudit(): AuditRepository & {
       events.push(item);
       return item;
     },
-    async listByDocument(documentKey: string, options: { since?: Date } = {}) {
-      const since = options.since?.toISOString() ?? '';
-      return sorted(events.filter((e) => e.documentKey === documentKey && e.sk >= since));
+    async listByDocument(documentKey: string) {
+      return sorted(events.filter((e) => e.documentKey === documentKey));
     },
     async listByPhone(phone: string) {
       return sorted(events.filter((e) => e.phone === phone));

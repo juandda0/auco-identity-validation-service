@@ -43,6 +43,7 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
 
   const deps: AppDependencies = {
     validationService,
+    audit,
     corsOrigin: config.CORS_ORIGIN,
     healthCheck: async () => {
       const [mongoOk, dynamoOk] = await Promise.all([

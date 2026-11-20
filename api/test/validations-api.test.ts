@@ -30,8 +30,9 @@ describe('POST /validations', () => {
     const res = await app.inject({ method: 'POST', url: '/validations', payload: validBody });
 
     expect(res.statusCode).toBe(201);
-    const { id } = res.json<{ id: string }>();
+    const { id, verdict, reasons } = res.json<{ id: string; verdict: string; reasons: [] }>();
     expect(id).toMatch(/^[a-f0-9]{24}$/);
+    expect({ verdict, reasons }).toEqual({ verdict: 'APPROVED', reasons: [] });
     expect(countries.calls).toEqual(['CO']);
     expect(validations.items.get(id)).toMatchObject({
       documentNumber: '1020304050',
@@ -130,6 +131,7 @@ describe('GET /validations/:id', () => {
         incomeLevel: 'Upper middle income',
         capital: 'Bogota',
       },
+      risk: { verdict: 'APPROVED', reasons: [] },
       createdAt: expect.stringMatching(/Z$/) as string,
     });
   });

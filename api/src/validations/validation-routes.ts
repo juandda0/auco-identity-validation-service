@@ -21,6 +21,8 @@ export const validationRoutes: FastifyPluginAsyncZod<ValidationRoutesOptions> = 
   app.post(
     '/validations',
     {
+      // Validation errors are handled in the handler so failed attempts can be audited.
+      attachValidation: true,
       schema: {
         tags: ['validations'],
         summary: 'Validate a person, enrich the record with country data and store it',
@@ -36,8 +38,12 @@ export const validationRoutes: FastifyPluginAsyncZod<ValidationRoutesOptions> = 
       },
     },
     async (request, reply) => {
+      if (request.validationError) {
+        await service.recordInvalidAttempt(request.body);
+        throw request.validationError;
+      }
       const record = await service.create(request.body);
-      return reply.code(201).send({ id: record.id });
+      return reply.code(201).send({ id: record.id, ...record.risk });
     },
   );
 
@@ -67,6 +73,7 @@ function toResponse(record: ValidationRecord) {
     countryCode: record.countryCode,
     phone: record.phone,
     country: record.country,
+    risk: record.risk,
     createdAt: record.createdAt.toISOString(),
   };
 }

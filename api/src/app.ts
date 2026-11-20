@@ -11,11 +11,14 @@ import {
 } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorHandler } from './shared/error-handler.js';
+import type { AuditRepository } from './audit/audit-event.js';
+import { auditRoutes } from './audit/audit-routes.js';
 import type { ValidationService } from './validations/validation-service.js';
 import { validationRoutes } from './validations/validation-routes.js';
 
 export interface AppDependencies {
   validationService: ValidationService;
+  audit: AuditRepository;
   /** Returns true when MongoDB and DynamoDB answer. */
   healthCheck: () => Promise<{ mongo: boolean; dynamo: boolean }>;
   corsOrigin: string;
@@ -81,6 +84,7 @@ export async function buildApp(deps: AppDependencies, logger?: FastifyBaseLogger
   );
 
   await app.register(validationRoutes, { service: deps.validationService });
+  await app.register(auditRoutes, { audit: deps.audit });
 
   return app;
 }

@@ -15,6 +15,7 @@ export async function buildTestApp(options: { countries?: ReturnType<typeof fake
   });
   const app = await buildApp({
     validationService,
+    audit,
     corsOrigin: '*',
     healthCheck: async () => ({ mongo: true, dynamo: true }),
   });

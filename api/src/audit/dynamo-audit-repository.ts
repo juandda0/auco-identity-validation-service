@@ -64,15 +64,15 @@ export function createDynamoAuditRepository(
       return item;
     },
 
-    async listByDocument(documentKey, options = {}) {
-      const since = options.since?.toISOString();
+    async listByDocument(documentKey) {
       return queryAll({
         TableName: tableName,
-        KeyConditionExpression: since ? 'documentKey = :pk AND sk >= :since' : 'documentKey = :pk',
-        ExpressionAttributeValues: since
-          ? { ':pk': documentKey, ':since': since }
-          : { ':pk': documentKey },
+        KeyConditionExpression: 'documentKey = :pk',
+        ExpressionAttributeValues: { ':pk': documentKey },
         ScanIndexForward: true,
+        // The risk engine must see the event written a moment ago. Strongly consistent
+        // reads are available on the base table (GSIs are always eventually consistent).
+        ConsistentRead: true,
       });
     },
 

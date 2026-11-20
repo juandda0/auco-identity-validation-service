@@ -8,6 +8,8 @@ export type AuditEventType =
  *   PK documentKey = "<countryCode>#<documentNumber>"  -> a person's full history in one Query
  *   SK sk          = "<ISO timestamp>#<eventId>"       -> chronological order + range queries,
  *                                                         the suffix avoids same-millisecond collisions
+ *                                                         (events inside one millisecond are treated
+ *                                                         as concurrent: their relative order is undefined)
  *   GSI phone-index (PK phone, SK sk)                  -> "same phone used by several people"
  */
 export interface AuditEvent {
@@ -36,9 +38,9 @@ export type NewAuditEvent = Omit<AuditEvent, 'documentKey' | 'sk' | 'eventId' | 
 
 export interface AuditRepository {
   append(event: NewAuditEvent): Promise<AuditEvent>;
-  /** Oldest first. `since` limits the query with the sort key (no scan, no filter). */
-  listByDocument(documentKey: string, options?: { since?: Date }): Promise<AuditEvent[]>;
-  /** Oldest first, read from the phone-index GSI. */
+  /** Oldest first: the sort key starts with the ISO timestamp. */
+  listByDocument(documentKey: string): Promise<AuditEvent[]>;
+  /** Oldest first, read from the phone-index GSI (eventually consistent). */
   listByPhone(phone: string): Promise<AuditEvent[]>;
 }
 
