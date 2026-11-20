@@ -1,4 +1,4 @@
-import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb';
+import { DescribeTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { MongoClient } from 'mongodb';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Config } from './config.js';
@@ -56,7 +56,8 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
           () => true,
           () => false,
         ),
-        dynamo.send(new ListTablesCommand({ Limit: 1 })).then(
+        // The table itself, not just the connection: without it every write fails.
+        dynamo.send(new DescribeTableCommand({ TableName: config.DYNAMO_TABLE })).then(
           () => true,
           () => false,
         ),

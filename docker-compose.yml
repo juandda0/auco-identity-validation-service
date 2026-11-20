@@ -4,7 +4,7 @@ services:
   mongo:
     image: mongo:7.0
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -15,9 +15,13 @@ services:
 
   dynamodb:
     image: amazon/dynamodb-local:2.6.1
-    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    # Persisted to a volume: an audit trail must survive restarts.
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data"]
+    user: root
+    volumes:
+      - dynamodb-data:/data
     ports:
-      - "${DYNAMO_PORT:-8000}:8000"
+      - "${DYNAMO_PORT:-8001}:8000"
 
   api:
     build: ./api
@@ -60,3 +64,4 @@ services:
 
 volumes:
   mongo-data:
+  dynamodb-data:
