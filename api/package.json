@@ -1,0 +1,44 @@
+{
+  "name": "auco-validation-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Identity validation service: enriches records with REST Countries, stores them in MongoDB and writes an audit trail to DynamoDB.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1174.0",
+    "@aws-sdk/lib-dynamodb": "^3.1174.0",
+    "@fastify/aws-lambda": "^6.4.2",
+    "@fastify/cors": "^11.4.3",
+    "@fastify/swagger": "^9.9.5",
+    "@fastify/swagger-ui": "^6.1.5",
+    "fastify": "^5.12.8",
+    "fastify-type-provider-zod": "^7.0.0",
+    "mongodb": "^7.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}

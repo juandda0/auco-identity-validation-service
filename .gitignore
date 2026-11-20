@@ -1,0 +1,11 @@
+CLAUDE.md
+contexto-auco/
+node_modules/
+.env
+PLAN-implementacion.md
+NOTAS-IA.md
+RESPUESTAS-FORMULARIO.md
+dist/
+coverage/
+.next/
+*.log
