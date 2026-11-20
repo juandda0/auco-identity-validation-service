@@ -14,6 +14,8 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // Fastify plugins and hooks are async by convention even when they do not await.
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {
