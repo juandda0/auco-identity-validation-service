@@ -13,11 +13,14 @@ import { z } from 'zod';
 import { errorHandler } from './shared/error-handler.js';
 import type { AuditRepository } from './audit/audit-event.js';
 import { auditRoutes } from './audit/audit-routes.js';
+import type { DocumentService } from './documents/document-service.js';
+import { documentRoutes } from './documents/document-routes.js';
 import type { ValidationService } from './validations/validation-service.js';
 import { validationRoutes } from './validations/validation-routes.js';
 
 export interface AppDependencies {
   validationService: ValidationService;
+  documentService: DocumentService;
   audit: AuditRepository;
   /** Returns true when MongoDB and DynamoDB answer. */
   healthCheck: () => Promise<{ mongo: boolean; dynamo: boolean }>;
@@ -85,6 +88,7 @@ export async function buildApp(deps: AppDependencies, logger?: FastifyBaseLogger
 
   await app.register(validationRoutes, { service: deps.validationService });
   await app.register(auditRoutes, { audit: deps.audit });
+  await app.register(documentRoutes, { service: deps.documentService });
 
   return app;
 }

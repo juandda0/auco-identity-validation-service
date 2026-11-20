@@ -80,6 +80,27 @@ Every validation gets a verdict, `APPROVED`, `REVIEW` or `BLOCKED`, with human-r
 
 A *failed attempt* is a request that identifies a document (valid number and country) but fails validation, or uses a country that does not exist. Upstream outages are not the person's fault and are not counted. Thresholds are arbitrary and live in `src/risk/risk-engine.ts`.
 
+### Documents: promissory note and signature
+
+A small "digital notary" flow on top of the validation. Only `APPROVED` validations can generate documents.
+
+```bash
+# 1. Generate a demo promissory note ("pagaré"); currency defaults to COP, city to the country's capital
+curl -X POST localhost:3000/validations/<validationId>/promissory-notes \
+  -H 'content-type: application/json' \
+  -d '{"amount": 1500000, "dueDate": "2027-06-30", "creditorName": "Banco Demo S.A."}'
+
+# 2. Sign it: records time, IP, user agent and the time since the validation
+curl -X POST localhost:3000/documents/<documentId>/sign
+
+# 3. Read it back
+curl localhost:3000/documents/<documentId>
+```
+
+- The SHA-256 of the content is written to the **immutable audit trail** when the document is generated. Signing recomputes it and compares it with that audit hash, not with the copy stored next to the document, so a document edited in MongoDB afterwards (even with its stored hash updated) is rejected with `409 DOCUMENT_TAMPERED`.
+- `PENDING_SIGNATURE → SIGNED` is a conditional update, so a double click cannot sign twice (`409 ALREADY_SIGNED`).
+- The document is a demo: it is marked "sin validez legal" and there is no cryptographic (PKI) signature.
+
 ### Errors
 
 Every error has the same shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
@@ -87,7 +108,8 @@ Every error has the same shape: `{"error": {"code": "...", "message": "...", "de
 | Status | Code | When |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Invalid body or id (with per-field `details`) |
-| 404 | `NOT_FOUND` | No validation with that id |
+| 404 | `NOT_FOUND` | No validation or document with that id |
+| 409 | `VALIDATION_NOT_APPROVED`, `ALREADY_SIGNED`, `DOCUMENT_TAMPERED` | Document rules |
 | 422 | `COUNTRY_NOT_FOUND` | The country code does not exist |
 | 502 | `UPSTREAM_UNAVAILABLE` | Countries API failed (after one retry) |
 | 504 | `UPSTREAM_TIMEOUT` | Countries API took longer than 3 s (after one retry) |

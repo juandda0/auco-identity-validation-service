@@ -10,6 +10,8 @@ import {
   ensureValidationIndexes,
 } from './validations/mongo-validation-repository.js';
 import { createValidationService } from './validations/validation-service.js';
+import { createDocumentService } from './documents/document-service.js';
+import { createMongoDocumentRepository } from './documents/mongo-document-repository.js';
 
 /** Wires real infrastructure (MongoDB, DynamoDB, World Bank API) into the app. */
 export async function createContainer(config: Config, logger: FastifyBaseLogger) {
@@ -34,15 +36,18 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
     baseUrl: config.COUNTRIES_API_URL,
     timeoutMs: config.COUNTRIES_TIMEOUT_MS,
   });
-  const validationService = createValidationService({
-    countries,
-    validations: createMongoValidationRepository(db),
+  const validations = createMongoValidationRepository(db);
+  const validationService = createValidationService({ countries, validations, audit, logger });
+  const documentService = createDocumentService({
+    validations,
+    documents: createMongoDocumentRepository(db),
     audit,
     logger,
   });
 
   const deps: AppDependencies = {
     validationService,
+    documentService,
     audit,
     corsOrigin: config.CORS_ORIGIN,
     healthCheck: async () => {

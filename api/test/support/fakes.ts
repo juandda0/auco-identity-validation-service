@@ -6,6 +6,7 @@ import {
   type AuditEvent,
   type AuditRepository,
 } from '../../src/audit/audit-event.js';
+import type { DocumentRecord, DocumentRepository } from '../../src/documents/document.js';
 import type { ValidationRecord, ValidationRepository } from '../../src/validations/validation.js';
 
 export const COLOMBIA: CountryInfo = {
@@ -88,3 +89,30 @@ export function inMemoryAudit(): AuditRepository & {
 }
 
 export const silentLogger = { error: () => undefined, warn: () => undefined };
+
+export function inMemoryDocuments(): DocumentRepository & { items: Map<string, DocumentRecord> } {
+  const items = new Map<string, DocumentRecord>();
+  return {
+    items,
+    async insert(document) {
+      items.set(document.id, structuredClone(document));
+    },
+    async findById(id) {
+      const document = items.get(id);
+      return document ? structuredClone(document) : null;
+    },
+    async deleteById(id) {
+      items.delete(id);
+    },
+    async markSigned(id, signature) {
+      const document = items.get(id);
+      if (document?.status !== 'PENDING_SIGNATURE') return false;
+      items.set(id, { ...document, status: 'SIGNED', signature });
+      return true;
+    },
+    async revertSignature(id) {
+      const document = items.get(id);
+      if (document) items.set(id, { ...document, status: 'PENDING_SIGNATURE', signature: null });
+    },
+  };
+}
