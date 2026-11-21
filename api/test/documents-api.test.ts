@@ -63,6 +63,17 @@ describe('promissory note template', () => {
     expect(sha256(content)).toBe(sha256(content));
     expect(sha256(`${content} `)).not.toBe(sha256(content));
   });
+
+  it('uses the Colombian date for the issue date (20:00 in Bogotá is already tomorrow in UTC)', () => {
+    const content = renderPromissoryNote(
+      { name: 'Ana Gómez', documentNumber: '1020304050', country: COLOMBIA },
+      { ...note, currency: 'COP', city: 'Bogota' },
+      new Date('2026-11-21T01:00:00Z'),
+    );
+
+    expect(content).toContain('PAGARÉ No. 20261120-1020304050');
+    expect(content).toContain('Lugar y fecha de emisión: Bogota, 2026-11-20.');
+  });
 });
 
 describe('POST /validations/:id/promissory-notes', () => {

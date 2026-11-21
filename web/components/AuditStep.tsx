@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, type AuditEvent, type Verdict } from '@/lib/api';
-import { Button, Card, ErrorBanner, VerdictBadge } from './ui';
+import { Button, Card, ErrorBanner, Page, VerdictBadge } from './ui';
 
 function describe(event: AuditEvent): string {
   const parts = [event.occurredAt];
@@ -30,11 +30,11 @@ export function AuditStep({
   }, [countryCode, documentNumber]);
 
   return (
-    <main className="mx-auto flex w-full max-w-[1120px] flex-wrap items-start gap-7 px-6 py-10">
-      <Card className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="text-[26px] font-bold tracking-tight">Audit timeline</h1>
-          <code className="rounded-md bg-[#eef3f8] px-2.5 py-1 font-mono text-sm text-navy">
+    <Page className="lg:flex-row lg:items-start">
+      <Card className="flex min-w-0 flex-col gap-5 sm:gap-6 lg:flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+          <h1 className="text-[22px] font-bold tracking-tight sm:text-[26px]">Audit timeline</h1>
+          <code className="self-start break-all rounded-md bg-[#eef3f8] px-2.5 py-1 font-mono text-sm text-navy">
             {countryCode}#{documentNumber}
           </code>
         </div>
@@ -44,13 +44,13 @@ export function AuditStep({
             {data.events.map((event, i) => {
               const last = i === data.events.length - 1;
               return (
-                <li key={event.eventId} className="flex gap-4">
+                <li key={event.eventId} className="flex gap-3 sm:gap-4">
                   <div className="flex flex-col items-center">
                     <span className={`mt-1 size-3.5 rounded-full ${event.eventType === 'VALIDATION_FAILED' ? 'bg-blocked' : last ? 'bg-approved' : 'bg-navy'}`} />
                     {!last && <span className="w-0.5 flex-1 bg-navy-soft" />}
                   </div>
                   <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-6'}`}>
-                    <span className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+                    <span className="flex flex-wrap items-center gap-2 break-all text-sm font-semibold sm:text-[15px]">
                       {event.eventType}
                       {event.verdict && <VerdictBadge verdict={event.verdict as Verdict} />}
                     </span>
@@ -61,12 +61,12 @@ export function AuditStep({
             })}
           </ol>
         )}
-        <Button variant="secondary" className="self-start" onClick={onRestart}>
+        <Button variant="secondary" className="sm:self-start" onClick={onRestart}>
           Start a new validation
         </Button>
       </Card>
 
-      <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-xl bg-ink p-6 text-[#e8ecf1]">
+      <aside className="flex min-w-0 flex-col gap-3.5 rounded-xl bg-ink p-5 text-[#e8ecf1] sm:p-6 lg:w-80 lg:shrink-0">
         <h2 className="text-[15px] font-semibold text-white">How it is stored</h2>
         <dl className="flex flex-col gap-3 text-[13px] leading-normal">
           {[
@@ -82,6 +82,6 @@ export function AuditStep({
           ))}
         </dl>
       </aside>
-    </main>
+    </Page>
   );
 }

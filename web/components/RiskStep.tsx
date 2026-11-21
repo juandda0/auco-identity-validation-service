@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, type Validation, type Verdict } from '@/lib/api';
-import { Button, Card, ErrorBanner, Mono, VerdictBadge } from './ui';
+import { Button, Card, ErrorBanner, Mono, Page, VerdictBadge } from './ui';
 
 const COPY: Record<Verdict, { title: string; subtitle: string; ring: string; icon: string }> = {
   APPROVED: {
@@ -45,39 +45,46 @@ export function RiskStep({
 
   if (error) {
     return (
-      <main className="mx-auto w-full max-w-[1120px] px-6 py-10">
+      <Page>
         <ErrorBanner error={error} />
-      </main>
+      </Page>
     );
   }
   if (!validation) {
-    return <main className="mx-auto w-full max-w-[1120px] px-6 py-10 text-muted">Loading…</main>;
+    return (
+      <Page>
+        <p className="text-muted">Loading…</p>
+      </Page>
+    );
   }
 
   const { verdict, reasons } = validation.risk;
   const copy = COPY[verdict];
 
   return (
-    <main className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-6 py-10">
-      <Card className={`flex flex-wrap items-center justify-between gap-6 ${copy.ring}`}>
-        <div className="flex items-center gap-5">
-          <div className={`flex size-16 shrink-0 items-center justify-center rounded-full ${copy.icon}`}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Page>
+      <Card className={`flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between ${copy.ring}`}>
+        <div className="flex items-start gap-4 sm:items-center sm:gap-5">
+          <div className={`flex size-12 shrink-0 items-center justify-center rounded-full sm:size-16 ${copy.icon}`}>
+            <svg className="size-6 sm:size-8" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               {verdict === 'APPROVED' ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : <><path d="M12 8v5" /><path d="M12 16.5v.5" /><path d="M10.3 3.9L2.6 17.5A2 2 0 004.3 20.5h15.4a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></>}
             </svg>
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-semibold tracking-wider text-muted">VERDICT</span>
-            <h1 className="text-[32px] font-bold leading-tight tracking-tight">{copy.title}</h1>
-            <span className="text-[15px] text-muted">
-              {copy.subtitle} <Mono>{validation.countryCode}#{validation.documentNumber}</Mono>
+            <span className="text-xs font-semibold tracking-wider text-muted sm:text-[13px]">VERDICT</span>
+            <h1 className="text-[26px] font-bold leading-tight tracking-tight sm:text-[32px]">{copy.title}</h1>
+            <span className="text-sm text-muted sm:text-[15px]">
+              {copy.subtitle}{' '}
+              <span className="block sm:inline">
+                <Mono>{validation.countryCode}#{validation.documentNumber}</Mono>
+              </span>
             </span>
           </div>
         </div>
         {verdict === 'APPROVED' ? (
           <Button onClick={onContinue}>Continue to promissory note</Button>
         ) : (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button variant="secondary" onClick={onTimeline}>
               See audit timeline
             </Button>
@@ -88,10 +95,10 @@ export function RiskStep({
 
       {reasons.length > 0 && (
         <Card>
-          <h2 className="mb-4 text-[15px] font-semibold">Why</h2>
+          <h2 className="mb-3 text-[15px] font-semibold sm:mb-4">Why</h2>
           <ul className="flex flex-col gap-3">
             {reasons.map((r) => (
-              <li key={r.code} className={`flex items-start gap-3.5 rounded-lg p-4 ${r.verdict === 'BLOCKED' ? 'bg-blocked-soft' : 'bg-[#fdf7ec]'}`}>
+              <li key={r.code} className={`flex flex-col items-start gap-2 rounded-lg p-4 sm:flex-row sm:gap-3.5 ${r.verdict === 'BLOCKED' ? 'bg-blocked-soft' : 'bg-[#fdf7ec]'}`}>
                 <VerdictBadge verdict={r.verdict} />
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-semibold">{r.message}</span>
@@ -103,7 +110,7 @@ export function RiskStep({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
         <Card>
           <h2 className="mb-4 text-[15px] font-semibold">Validated person</h2>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 text-sm">
@@ -126,7 +133,7 @@ export function RiskStep({
           </dl>
         </Card>
       </div>
-    </main>
+    </Page>
   );
 }
 

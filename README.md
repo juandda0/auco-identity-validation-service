@@ -11,7 +11,7 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Audit event in DynamoDB Local keyed by document and date | [`dynamo-audit-repository.ts`](api/src/infrastructure/persistence/dynamo-audit-repository.ts) |
 | Input validation | Zod schemas, [`schemas.ts`](api/src/presentation/http/schemas.ts) |
 | External API error handling | [`world-bank-countries-client.ts`](api/src/infrastructure/countries/world-bank-countries-client.ts) |
-| At least 3 automated tests | 54 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
+| At least 3 automated tests | 55 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
 | README | this file |
 
 | Extra | Where |
@@ -19,7 +19,7 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
 | Promissory note with tamper-evident signature | [`document-service.ts`](api/src/application/document-service.ts) |
 | Audit timeline endpoint | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
-| Next.js front end for the whole flow | [`web/`](web) |
+| Mobile-first Next.js front end for the whole flow | [`web/`](web) |
 | OpenAPI docs, CI, Lambda entry point, demo script | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
 
 ## Quick start
@@ -248,7 +248,7 @@ curl -X POST localhost:3000/documents/<documentId>/sign
 
 ```bash
 cd api && npm ci
-npm test                 # 54 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
+npm test                 # 55 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
 npm run lint && npm run typecheck
 
 docker compose up -d mongo dynamodb
@@ -273,7 +273,7 @@ api/src/
   container.ts                composition root
   server.ts · lambda.ts       entry points (container / AWS Lambda)
 api/test/                     unit + HTTP tests, test/e2e integration tests
-web/                          Next.js 16 + Tailwind front end
+web/                          Next.js 16 + Tailwind front end, mobile first
 scripts/demo.sh               curl tour of every scenario
 ```
 

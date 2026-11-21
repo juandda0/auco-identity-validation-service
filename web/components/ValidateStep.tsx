@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
-import { Button, Card, ErrorBanner, Field } from './ui';
+import { Button, Card, ErrorBanner, Field, Page } from './ui';
 
 const COUNTRIES = [
   ['CO', 'Colombia'],
@@ -76,11 +76,11 @@ export function ValidateStep({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1120px] flex-wrap items-start gap-8 px-6 py-10">
-      <Card className="min-w-0 flex-[999_1_560px]">
-        <div className="mb-6 flex flex-col gap-2">
-          <h1 className="text-[28px] font-bold tracking-tight">Validate identity</h1>
-          <p className="text-[15px] leading-relaxed text-muted">
+    <Page className="lg:flex-row lg:items-start">
+      <Card className="min-w-0 lg:flex-1">
+        <div className="mb-5 flex flex-col gap-2 sm:mb-6">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-[28px]">Validate identity</h1>
+          <p className="text-sm leading-relaxed text-muted sm:text-[15px]">
             We enrich the record with public country data, check it against the audit history and
             store it with an immutable audit event.
           </p>
@@ -104,7 +104,7 @@ export function ValidateStep({
             <select
               value={form.countryCode}
               onChange={(e) => set('countryCode')(e.target.value)}
-              className="h-11 rounded-lg border border-field bg-white px-3 font-normal text-ink"
+              className="h-12 rounded-lg border border-field bg-white px-3 text-base font-normal text-ink sm:h-11 sm:text-[15px]"
             >
               {COUNTRIES.map(([code, name]) => (
                 <option key={code} value={code}>
@@ -122,7 +122,7 @@ export function ValidateStep({
             onChange={(e) => set('phone')(e.target.value)}
             autoComplete="tel"
           />
-          <div className="flex flex-wrap gap-3 pt-2 sm:col-span-2">
+          <div className="flex flex-col gap-3 pt-1 sm:col-span-2 sm:flex-row sm:pt-2">
             <Button type="submit" disabled={busy}>
               {busy ? 'Validating…' : 'Validate identity'}
             </Button>
@@ -136,8 +136,8 @@ export function ValidateStep({
         </form>
       </Card>
 
-      <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
-        <Card className="!p-6">
+      <aside className="flex min-w-0 flex-col gap-4 lg:w-80 lg:shrink-0">
+        <Card className="sm:!p-6">
           <h2 className="mb-4 text-[15px] font-semibold">What happens when you validate</h2>
           <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm leading-snug text-[#374251]">
             <li>Country data from the World Bank API (3 s timeout, one retry)</li>
@@ -150,6 +150,6 @@ export function ValidateStep({
           WhatsApp delivery. The fraud scenario reuses the last document under another name.
         </div>
       </aside>
-    </main>
+    </Page>
   );
 }

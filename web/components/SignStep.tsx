@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type DocumentRecord } from '@/lib/api';
-import { Button, Card, ErrorBanner, Field } from './ui';
+import { Button, Card, ErrorBanner, Field, Page } from './ui';
 
+/** Same day next year, in the browser's local date (toISOString would use UTC). */
 function nextYear(): string {
   const d = new Date();
-  d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear() + 1}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /** Accepts "1500000", "1.500.000" or "1.500.000,50" (Colombian format). */
@@ -37,6 +38,13 @@ export function SignStep({
   const [document, setDocument] = useState<DocumentRecord | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const preview = useRef<HTMLElement>(null);
+  const documentId = document?.id;
+
+  // On phones the preview sits below the form: bring a new document into view.
+  useEffect(() => {
+    if (documentId) preview.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [documentId]);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -75,11 +83,11 @@ export function SignStep({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1180px] flex-wrap items-start gap-7 px-6 py-10">
-      <Card className="min-w-0 flex-[1_1_340px] !p-7">
+    <Page className="lg:flex-row lg:items-start">
+      <Card className="min-w-0 lg:w-96 lg:shrink-0 sm:!p-7">
         <form onSubmit={generate} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-2xl font-bold tracking-tight">Promissory note</h1>
+            <h1 className="text-[22px] font-bold tracking-tight sm:text-2xl">Promissory note</h1>
             <p className="text-sm leading-relaxed text-muted">
               Filled with the validated identity. Only approved validations can generate documents.
             </p>
@@ -103,12 +111,15 @@ export function SignStep({
         </form>
       </Card>
 
-      <section className="flex min-w-0 flex-[999_1_520px] flex-col gap-4">
+      <section className="flex min-w-0 flex-col gap-4 lg:flex-1">
         <ErrorBanner error={error} />
         {document ? (
           <>
-            <article className="flex flex-col gap-3.5 rounded-xl border border-line bg-white px-6 py-8 sm:px-10">
-              <pre lang="es" className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-[#23303d]">
+            <article
+              ref={preview}
+              className="flex scroll-mt-28 flex-col gap-3.5 rounded-xl border border-line bg-white px-5 py-6 sm:px-10 sm:py-8"
+            >
+              <pre lang="es" className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-[#23303d] sm:text-[15px]">
                 {document.content}
               </pre>
               <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-field pt-4">
@@ -116,17 +127,17 @@ export function SignStep({
                 <code className="break-all font-mono text-xs">{document.contentHash}</code>
               </div>
             </article>
-            <div className="flex flex-wrap items-center justify-between gap-5 rounded-xl border border-line bg-white px-6 py-5">
+            <div className="sticky bottom-3 flex flex-col gap-4 rounded-xl border border-line bg-white px-5 py-4 shadow-[0_8px_24px_rgba(19,32,46,0.12)] sm:static sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:px-6 sm:py-5 sm:shadow-none">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-subtle">Validation to signature</span>
-                <span className="font-mono text-[28px] font-medium">
+                <span className="font-mono text-2xl font-medium sm:text-[28px]">
                   {document.signature ? formatElapsed(document.signature.elapsedMs) : '--:--'}
                 </span>
                 <span className="text-xs text-subtle">
                   AUCO reported 46 s per signature in 2022 (Portafolio)
                 </span>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-col gap-2 sm:items-end">
                 {document.status === 'SIGNED' ? (
                   <Button onClick={onTimeline}>See audit timeline</Button>
                 ) : (
@@ -143,11 +154,11 @@ export function SignStep({
             </div>
           </>
         ) : (
-          <div className="flex min-h-80 items-center justify-center rounded-xl border border-dashed border-field p-8 text-center text-sm text-subtle">
+          <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-field p-6 text-center text-sm text-subtle sm:min-h-80 sm:p-8">
             The generated document and its hash appear here.
           </div>
         )}
       </section>
-    </main>
+    </Page>
   );
 }

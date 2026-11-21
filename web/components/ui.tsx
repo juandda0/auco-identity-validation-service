@@ -1,9 +1,18 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import { ApiError, type Verdict } from '@/lib/api';
 
+/** Page wrapper: one column on phones, wider gutters from `sm`. */
+export function Page({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <main className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:gap-6 sm:px-6 sm:py-10 ${className}`}>
+      {children}
+    </main>
+  );
+}
+
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-line bg-white p-6 sm:p-8 ${className}`}>
+    <section className={`rounded-xl border border-line bg-white p-5 sm:p-8 ${className}`}>
       {children}
     </section>
   );
@@ -18,15 +27,17 @@ export function Field({
   return (
     <label className={`flex flex-col gap-1.5 text-sm font-semibold ${className}`}>
       {label}
+      {/* text-base (16px) keeps iOS Safari from zooming into the field */}
       <input
         {...input}
-        className="h-11 rounded-lg border border-field bg-white px-3.5 font-normal text-ink outline-none focus:border-navy focus:ring-2 focus:ring-navy/20"
+        className="h-12 rounded-lg border border-field bg-white px-3.5 text-base font-normal text-ink outline-none focus:border-navy focus:ring-2 focus:ring-navy/20 sm:h-11 sm:text-[15px]"
       />
       {hint && <span className="text-xs font-normal text-subtle">{hint}</span>}
     </label>
   );
 }
 
+/** Full width on phones (easy to reach with a thumb), natural width from `sm`. */
 export function Button({
   variant = 'primary',
   className = '',
@@ -39,7 +50,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`inline-flex h-12 items-center justify-center rounded-lg px-6 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed ${styles} ${className}`}
+      className={`inline-flex h-12 w-full items-center justify-center rounded-lg px-6 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed sm:w-auto ${styles} ${className}`}
     />
   );
 }
@@ -52,7 +63,7 @@ const VERDICT_STYLES: Record<Verdict, string> = {
 
 export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${VERDICT_STYLES[verdict]}`}>
+    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${VERDICT_STYLES[verdict]}`}>
       {verdict}
     </span>
   );
@@ -66,7 +77,7 @@ export function ErrorBanner({ error }: { error: unknown }) {
       <p className="font-semibold">
         {apiError ? `${apiError.status || ''} ${apiError.code}`.trim() : 'Error'}
       </p>
-      <p>{error instanceof Error ? error.message : String(error)}</p>
+      <p className="break-words">{error instanceof Error ? error.message : String(error)}</p>
       {apiError && apiError.details.length > 0 && (
         <ul className="mt-2 list-disc pl-5">
           {apiError.details.map((d) => (
@@ -81,5 +92,5 @@ export function ErrorBanner({ error }: { error: unknown }) {
 }
 
 export function Mono({ children }: { children: ReactNode }) {
-  return <span className="font-mono text-[13px]">{children}</span>;
+  return <span className="break-all font-mono text-[13px]">{children}</span>;
 }

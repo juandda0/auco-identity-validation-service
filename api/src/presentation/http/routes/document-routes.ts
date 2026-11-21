@@ -1,13 +1,9 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { DocumentService } from '../../../application/document-service.js';
+import { dateInColombia } from '../../../domain/dates.js';
 import type { DocumentRecord } from '../../../domain/document.js';
 import { errorResponseSchema, objectIdSchema } from '../schemas.js';
-
-/** Today's date (YYYY-MM-DD) in Colombia; a UTC date would already be "tomorrow" after 19:00. */
-function todayInColombia(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
-}
 
 /** 19.99 * 100 is 1998.9999999999998 in floating point, so compare with a tolerance. */
 function hasAtMostTwoDecimals(n: number): boolean {
@@ -27,7 +23,7 @@ export const promissoryNoteBodySchema = z.object({
     .regex(/^[A-Z]{3}$/, 'must be an ISO 4217 code such as COP')
     .refine(isSupportedCurrency, 'unknown currency')
     .default('COP'),
-  dueDate: z.iso.date().refine((d) => d > todayInColombia(), {
+  dueDate: z.iso.date().refine((d) => d > dateInColombia(new Date()), {
     message: 'must be a future date (Colombia time)',
   }),
   creditorName: z.string().trim().min(2).max(100),

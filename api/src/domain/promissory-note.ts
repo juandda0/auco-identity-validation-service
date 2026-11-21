@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { dateInColombia } from './dates.js';
 import type { ValidationRecord } from './validation.js';
 import type { PromissoryNoteFields } from './document.js';
 
@@ -16,7 +17,7 @@ export function renderPromissoryNote(
     style: 'currency',
     currency: fields.currency,
   }).format(fields.amount);
-  const issued = issuedOn.toISOString().slice(0, 10);
+  const issued = dateInColombia(issuedOn);
 
   return [
     'DOCUMENTO DE DEMOSTRACIÓN - SIN VALIDEZ LEGAL',
