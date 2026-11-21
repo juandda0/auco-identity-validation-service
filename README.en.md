@@ -25,6 +25,12 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Mobile-first Next.js front end for the whole flow, in English and Spanish, light and dark | [`web/`](web) |
 | OpenAPI docs, CI, Lambda entry point, demo script | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
 
+## Video
+
+[![39-second video: validate, assess risk, sign and audit](docs/video-portada.jpg)](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view)
+
+A 39-second walkthrough of the flow, built in code (Remotion) on real captures of the web app, with an ElevenLabs voice-over in Spanish. In the video the product is called *Constata*. [Watch in 16:9](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view) · [Watch vertical 9:16](https://drive.google.com/file/d/1KcqEdP51o7aAHdvfoK083pyNo14Jiabx/view). Music: *Heads Will Roll (A-Trak Remix)*, Yeah Yeah Yeahs.
+
 ## Quick start
 
 Requirements: Docker with Compose. Internet access (the service calls the World Bank API).
