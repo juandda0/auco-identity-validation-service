@@ -29,7 +29,7 @@ Sobre los endpoints obligatorios crece hasta una pequeña «notaría digital», 
 
 [![Video de 39 s: validar, evaluar el riesgo, firmar y auditar](docs/video-portada.jpg)](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view)
 
-Recorrido de 39 s por el flujo, armado en código (Remotion) sobre capturas reales de la app web, con voz generada con ElevenLabs. En el video el producto lleva el nombre de *Constata*. [Ver en 16:9](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view) · [Ver en vertical 9:16](https://drive.google.com/file/d/1KcqEdP51o7aAHdvfoK083pyNo14Jiabx/view). Música: *Heads Will Roll (A-Trak Remix)*, Yeah Yeah Yeahs.
+Recorrido de 39 s por el flujo, armado en código (Remotion) sobre capturas reales de la app web, con voz generada con ElevenLabs. [Ver en 16:9](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view) · [Ver en vertical 9:16](https://drive.google.com/file/d/1KcqEdP51o7aAHdvfoK083pyNo14Jiabx/view). Música: *Heads Will Roll (A-Trak Remix)*, Yeah Yeah Yeahs.
 
 ## Inicio rápido
 

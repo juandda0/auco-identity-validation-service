@@ -29,7 +29,7 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 
 [![39-second video: validate, assess risk, sign and audit](docs/video-portada.jpg)](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view)
 
-A 39-second walkthrough of the flow, built in code (Remotion) on real captures of the web app, with an ElevenLabs voice-over in Spanish. In the video the product is called *Constata*. [Watch in 16:9](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view) · [Watch vertical 9:16](https://drive.google.com/file/d/1KcqEdP51o7aAHdvfoK083pyNo14Jiabx/view). Music: *Heads Will Roll (A-Trak Remix)*, Yeah Yeah Yeahs.
+A 39-second walkthrough of the flow, built in code (Remotion) on real captures of the web app, with an ElevenLabs voice-over in Spanish. [Watch in 16:9](https://drive.google.com/file/d/1IghtpW329I2ZsyTsirISBGvDyeM-zsp1/view) · [Watch vertical 9:16](https://drive.google.com/file/d/1KcqEdP51o7aAHdvfoK083pyNo14Jiabx/view). Music: *Heads Will Roll (A-Trak Remix)*, Yeah Yeah Yeahs.
 
 ## Quick start
 
