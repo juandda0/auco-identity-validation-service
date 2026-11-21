@@ -2,39 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import { api, type Validation, type Verdict } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 import type { IconName } from './icons';
 import { Icon } from './icons';
 import { Actions, Button, ErrorBanner, Mono, StepHeader, VerdictBadge } from './ui';
 
-const COPY: Record<
-  Verdict,
-  { title: string; subtitle: string; icon: IconName; tone: 'success' | 'warning' | 'error' }
-> = {
-  APPROVED: {
-    title: 'Identity approved',
-    subtitle: 'No risk signals in the audit history. You can generate and sign a document.',
-    icon: 'check',
-    tone: 'success',
-  },
-  REVIEW: {
-    title: 'Needs review',
-    subtitle: 'The record was stored, but documents cannot be generated until it is approved.',
-    icon: 'alert',
-    tone: 'warning',
-  },
-  BLOCKED: {
-    title: 'Blocked',
-    subtitle: 'The record was stored for traceability. No documents can be generated.',
-    icon: 'x',
-    tone: 'error',
-  },
+const LOOK: Record<Verdict, { icon: IconName; tone: 'success' | 'warning' | 'error' }> = {
+  APPROVED: { icon: 'check', tone: 'success' },
+  REVIEW: { icon: 'alert', tone: 'warning' },
+  BLOCKED: { icon: 'x', tone: 'error' },
 };
 
-const SIGNALS = [
-  ['DOCUMENT_NAME_MISMATCH', 'Same document under another name'],
-  ['SHARED_PHONE', 'Phone linked to other documents'],
-  ['REPEATED_FAILURES', 'Failed attempts in the last 24 h'],
-] as const;
+const SIGNALS = ['DOCUMENT_NAME_MISMATCH', 'SHARED_PHONE', 'REPEATED_FAILURES'] as const;
+
+/**
+ * The API explains each reason in English ("linked to 3 other documents").
+ * The UI translates it by code and only reuses the number from that message.
+ */
+function countIn(message: string): number {
+  return Number(/\d+/.exec(message)?.[0] ?? 1);
+}
 
 export function RiskStep({
   validationId,
@@ -47,6 +34,7 @@ export function RiskStep({
   onContinue: () => void;
   onTimeline: () => void;
 }) {
+  const { t } = useI18n();
   const [validation, setValidation] = useState<Validation | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -55,17 +43,17 @@ export function RiskStep({
   }, [validationId]);
 
   if (error) return <ErrorBanner error={error} />;
-  if (!validation) return <p className="text-sm text-subtle">Loading…</p>;
+  if (!validation) return <p className="text-sm text-subtle">{t.loading}</p>;
 
   const { verdict, reasons } = validation.risk;
-  const copy = COPY[verdict];
+  const look = LOOK[verdict];
 
   return (
     <div>
-      <StepHeader icon={copy.icon} tone={copy.tone} title={copy.title} subtitle={copy.subtitle} />
+      <StepHeader icon={look.icon} tone={look.tone} title={t.risk[verdict].title} subtitle={t.risk[verdict].subtitle} />
 
       <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
-        {SIGNALS.map(([code, label]) => {
+        {SIGNALS.map((code) => {
           const reason = reasons.find((r) => r.code === code);
           return (
             <li key={code} className="flex items-start gap-3 p-3.5">
@@ -78,10 +66,10 @@ export function RiskStep({
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
-                  {label}
+                  {t.risk.signals[code]}
                   {reason && <VerdictBadge verdict={reason.verdict} />}
                 </span>
-                <span className="text-xs text-subtle sm:text-sm">{reason ? reason.message : 'No signal'}</span>
+                <span className="text-xs text-subtle sm:text-sm">{reason ? t.risk.reasons[code](countIn(reason.message)) : t.risk.noSignal}</span>
               </div>
             </li>
           );
@@ -89,26 +77,26 @@ export function RiskStep({
       </ul>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-canvas p-4 text-sm">
-        <Item label="Name">{validation.name}</Item>
-        <Item label="Document">
+        <Item label={t.risk.name}>{validation.name}</Item>
+        <Item label={t.risk.document}>
           <Mono>
             {validation.countryCode}#{validation.documentNumber}
           </Mono>
         </Item>
-        <Item label="Country">
+        <Item label={t.risk.country}>
           {validation.country.name} · {validation.country.capital ?? '—'}
         </Item>
-        <Item label="Region">{validation.country.region}</Item>
+        <Item label={t.risk.region}>{validation.country.region}</Item>
       </dl>
 
       <Actions>
         <Button type="button" variant="secondary" icon="chevronLeft" onClick={onBack}>
-          Go back
+          {t.actions.back}
         </Button>
         {verdict === 'APPROVED' ? (
-          <Button onClick={onContinue}>Continue</Button>
+          <Button onClick={onContinue}>{t.actions.continue}</Button>
         ) : (
-          <Button onClick={onTimeline}>See audit trail</Button>
+          <Button onClick={onTimeline}>{t.risk.seeAudit}</Button>
         )}
       </Actions>
     </div>

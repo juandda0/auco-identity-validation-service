@@ -19,7 +19,7 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
 | Promissory note with tamper-evident signature | [`document-service.ts`](api/src/application/document-service.ts) |
 | Audit timeline endpoint | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
-| Mobile-first Next.js front end for the whole flow | [`web/`](web) |
+| Mobile-first Next.js front end for the whole flow, in English and Spanish, light and dark | [`web/`](web) |
 | OpenAPI docs, CI, Lambda entry point, demo script | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
 
 ## Quick start
@@ -237,6 +237,14 @@ curl -X POST localhost:3000/documents/<documentId>/sign
 - Its SHA-256 is written to the **immutable audit trail** when it is generated. Signing recomputes the hash and compares it with the audit copy, not with the one stored next to the document. A document edited in MongoDB afterwards, even with its stored hash updated, is rejected with `409 DOCUMENT_TAMPERED`.
 - `PENDING_SIGNATURE → SIGNED` is a conditional `updateOne`, so concurrent clicks cannot sign twice (`409 ALREADY_SIGNED`).
 - The signature stores time, IP, user agent and the time since the validation (the web app shows it as a stopwatch).
+
+## Web app
+
+[`web/`](web) is a Next.js 16 + Tailwind 4 onboarding-style flow, one question per screen: country → identity → risk verdict → promissory note and signature → audit trail.
+
+- **Mobile first:** base styles target phones (compact progress bar, sticky actions, 16 px inputs); from `lg` a side panel shows the steps.
+- **English and Spanish:** typed dictionaries in [`lib/i18n`](web/lib/i18n). `es.ts` is typed as the shape of `en.ts`, so a missing or extra key fails the build. The first language comes from the browser and the choice is saved. API error messages stay in English: they are part of the API contract.
+- **Light and dark:** colours are CSS variables switched by `data-theme` on `<html>`; the preference (light, dark or system) is saved, and a tiny inline script applies it before the first paint so there is no white flash.
 
 ## What is real and what is simulated
 

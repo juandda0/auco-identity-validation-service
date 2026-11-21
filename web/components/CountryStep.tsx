@@ -1,14 +1,15 @@
 'use client';
 
+import { useI18n } from '@/lib/i18n';
 import { Icon } from './icons';
 import { Actions, Button, Field, OptionCard, StepHeader } from './ui';
 
 const COUNTRIES = [
-  { code: 'CO', name: 'Colombia', description: 'Cédula de ciudadanía', color: 'text-[#1570ef]' },
-  { code: 'PE', name: 'Peru', description: 'DNI', color: 'text-[#dd2590]' },
-  { code: 'MX', name: 'Mexico', description: 'INE / CURP', color: 'text-[#079455]' },
-  { code: 'EC', name: 'Ecuador', description: 'Cédula de identidad', color: 'text-[#7a5af8]' },
-  { code: 'CL', name: 'Chile', description: 'RUN', color: 'text-[#ef6820]' },
+  { code: 'CO', color: 'text-accent-blue' },
+  { code: 'PE', color: 'text-accent-pink' },
+  { code: 'MX', color: 'text-accent-green' },
+  { code: 'EC', color: 'text-accent-purple' },
+  { code: 'CL', color: 'text-accent-orange' },
 ] as const;
 
 export function CountryStep({
@@ -20,6 +21,7 @@ export function CountryStep({
   onChange: (code: string) => void;
   onContinue: () => void;
 }) {
+  const { t } = useI18n();
   const isListed = COUNTRIES.some((c) => c.code === countryCode);
   const validCode = /^[A-Za-z]{2}$/.test(countryCode);
 
@@ -30,19 +32,15 @@ export function CountryStep({
         if (validCode) onContinue();
       }}
     >
-      <StepHeader
-        icon="globe"
-        title="Where is the document from?"
-        subtitle="We enrich the record with public country data (World Bank API)."
-      />
-      <div role="radiogroup" aria-label="Country" className="grid grid-cols-2 gap-3">
+      <StepHeader icon="globe" title={t.country.title} subtitle={t.country.subtitle} />
+      <div role="radiogroup" aria-label={t.country.groupLabel} className="grid grid-cols-2 gap-3">
         {COUNTRIES.map((c) => (
           <OptionCard
             key={c.code}
             icon={c.code}
             iconClass={c.color}
-            title={c.name}
-            description={c.description}
+            title={t.country.options[c.code].name}
+            description={t.country.options[c.code].document}
             selected={countryCode === c.code}
             onSelect={() => onChange(c.code)}
           />
@@ -50,8 +48,8 @@ export function CountryStep({
         <OptionCard
           icon={<Icon name="spark" className="size-5" />}
           iconClass="text-subtle"
-          title="Another country"
-          description="Any ISO code"
+          title={t.country.otherTitle}
+          description={t.country.otherDescription}
           selected={!isListed}
           onSelect={() => onChange('')}
         />
@@ -59,9 +57,9 @@ export function CountryStep({
       {!isListed && (
         <Field
           className="mt-4"
-          label="ISO 3166-1 alpha-2 code"
-          hint="Try ZZ to see how an unknown country is handled (422)."
-          placeholder="e.g. AR"
+          label={t.country.isoLabel}
+          hint={t.country.isoHint}
+          placeholder={t.country.isoPlaceholder}
           maxLength={2}
           autoFocus
           value={countryCode}
@@ -71,7 +69,7 @@ export function CountryStep({
       <Actions>
         <span />
         <Button type="submit" disabled={!validCode}>
-          Continue
+          {t.actions.continue}
         </Button>
       </Actions>
     </form>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type DocumentRecord } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 import { Icon } from './icons';
 import { Actions, Button, ErrorBanner, Field, StepHeader } from './ui';
 
@@ -31,6 +32,7 @@ export function SignStep({
   onBack: () => void;
   onContinue: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     amount: '1.500.000',
     currency: 'COP',
@@ -89,28 +91,24 @@ export function SignStep({
 
   return (
     <div>
-      <StepHeader
-        icon="file"
-        title="Generate and sign the promissory note"
-        subtitle="Filled with the validated identity. Its SHA-256 goes to the immutable audit trail."
-      />
+      <StepHeader icon="file" title={t.sign.title} subtitle={t.sign.subtitle} />
 
       <form onSubmit={generate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Amount" inputMode="decimal" value={form.amount} onChange={set('amount')} />
+        <Field label={t.sign.amount} inputMode="decimal" value={form.amount} onChange={set('amount')} />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Currency" maxLength={3} value={form.currency} onChange={set('currency')} />
-          <Field label="Due date" type="date" value={form.dueDate} onChange={set('dueDate')} />
+          <Field label={t.sign.currency} maxLength={3} value={form.currency} onChange={set('currency')} />
+          <Field label={t.sign.dueDate} type="date" value={form.dueDate} onChange={set('dueDate')} />
         </div>
-        <Field label="Creditor" value={form.creditorName} onChange={set('creditorName')} />
+        <Field label={t.sign.creditor} value={form.creditorName} onChange={set('creditorName')} />
         <Field
-          label="City (optional)"
-          placeholder="Capital of the country"
+          label={t.sign.city}
+          placeholder={t.sign.cityPlaceholder}
           value={form.city}
           onChange={set('city')}
         />
         <div className="sm:col-span-2">
           <Button type="submit" variant="secondary" icon="file" disabled={busy || signed} className="w-full">
-            {document ? 'Generate a new version' : 'Generate document'}
+            {document ? t.sign.regenerate : t.sign.generate}
           </Button>
         </div>
       </form>
@@ -120,13 +118,15 @@ export function SignStep({
       {document && (
         <article ref={preview} className="mt-6 scroll-mt-28 overflow-hidden rounded-xl border border-line">
           <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas px-4 py-2.5">
-            <span className="text-xs font-medium text-muted">Promissory note · demo, no legal value</span>
+            <span className="text-xs font-medium text-muted" title={t.sign.documentLanguage}>
+              {t.sign.documentLabel}
+            </span>
             <span
               className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                signed ? 'border-[#abefc6] bg-success-soft text-success' : 'border-line bg-white text-muted'
+                signed ? 'border-success-line bg-success-soft text-success' : 'border-line bg-surface text-muted'
               }`}
             >
-              {signed ? 'Signed' : 'Pending signature'}
+              {signed ? t.sign.signed : t.sign.pending}
             </span>
           </div>
           <pre lang="es" className="whitespace-pre-wrap break-words px-4 py-5 font-sans text-sm leading-relaxed text-ink sm:px-6">
@@ -141,7 +141,7 @@ export function SignStep({
               <span className="font-mono text-lg font-medium text-ink">
                 {document.signature ? formatElapsed(document.signature.elapsedMs) : '--:--'}
               </span>
-              <span className="text-xs text-subtle">validation → signature (AUCO cited 46 s, 2022)</span>
+              <span className="text-xs text-subtle">{t.sign.stopwatch}</span>
             </div>
           </div>
         </article>
@@ -149,13 +149,13 @@ export function SignStep({
 
       <Actions>
         <Button type="button" variant="secondary" icon="chevronLeft" onClick={onBack}>
-          Go back
+          {t.actions.back}
         </Button>
         {signed ? (
-          <Button onClick={onContinue}>Continue</Button>
+          <Button onClick={onContinue}>{t.actions.continue}</Button>
         ) : (
           <Button onClick={sign} disabled={!document || busy} icon="pen">
-            Sign document
+            {t.sign.sign}
           </Button>
         )}
       </Actions>

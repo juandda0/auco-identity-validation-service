@@ -1,5 +1,7 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Mono, Inter } from 'next/font/google';
+import { I18nProvider } from '@/lib/i18n';
+import { ThemeProvider, themeInitScript } from '@/lib/theme';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -14,10 +16,25 @@ export const metadata: Metadata = {
   description: 'Identity validation, risk verdict, promissory note and audit trail (demo).',
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#13161b' },
+  ],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${plexMono.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+    // data-theme and lang are set on the client, so React must not complain about them.
+    <html lang="en" className={`${inter.variable} ${plexMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="font-sans antialiased">
+        <ThemeProvider>
+          <I18nProvider>{children}</I18nProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

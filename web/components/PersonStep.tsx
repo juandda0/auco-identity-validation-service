@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 import { Actions, Button, ErrorBanner, Field, StepHeader } from './ui';
 
 export interface PersonForm {
@@ -31,6 +32,7 @@ export function PersonStep({
   onBack: () => void;
   onValidated: (result: ValidationResult) => void;
 }) {
+  const { t } = useI18n();
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (key: keyof PersonForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -62,23 +64,19 @@ export function PersonStep({
 
   return (
     <form onSubmit={submit}>
-      <StepHeader
-        icon="idCard"
-        title="Who are we validating?"
-        subtitle="Only name and document are required. The phone feeds the shared-phone fraud signal."
-      />
+      <StepHeader icon="idCard" title={t.person.title} subtitle={t.person.subtitle} />
       <div className="flex flex-col gap-4">
-        <Field label="Full name" autoComplete="name" value={form.name} onChange={set('name')} />
+        <Field label={t.person.name} autoComplete="name" value={form.name} onChange={set('name')} />
         <Field
-          label="Document number"
-          hint="Dots and dashes are ignored."
+          label={t.person.document}
+          hint={t.person.documentHint}
           inputMode="text"
           value={form.documentNumber}
           onChange={set('documentNumber')}
         />
         <Field
-          label="Phone (optional)"
-          hint="E.164 format, e.g. +57 300 123 4567."
+          label={t.person.phone}
+          hint={t.person.phoneHint}
           type="tel"
           autoComplete="tel"
           value={form.phone}
@@ -94,15 +92,15 @@ export function PersonStep({
           onChange({ ...form, name: 'Carlos Ruiz', documentNumber: lastDocument ?? '1020304050' })
         }
       >
-        Try a fraud scenario: same document, another name
+        {t.person.fraud}
       </Button>
       <ErrorBanner error={error} />
       <Actions>
         <Button type="button" variant="secondary" icon="chevronLeft" onClick={onBack}>
-          Go back
+          {t.actions.back}
         </Button>
         <Button type="submit" disabled={busy}>
-          {busy ? 'Validating…' : 'Validate identity'}
+          {busy ? t.person.submitting : t.person.submit}
         </Button>
       </Actions>
     </form>
