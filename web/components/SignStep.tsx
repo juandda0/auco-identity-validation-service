@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type DocumentRecord } from '@/lib/api';
-import { Button, Card, ErrorBanner, Field, Page } from './ui';
+import { Icon } from './icons';
+import { Actions, Button, ErrorBanner, Field, StepHeader } from './ui';
 
 /** Same day next year, in the browser's local date (toISOString would use UTC). */
 function nextYear(): string {
@@ -23,13 +24,15 @@ function formatElapsed(ms: number): string {
 
 export function SignStep({
   validationId,
-  onTimeline,
+  onBack,
+  onContinue,
 }: {
   validationId: string;
-  onTimeline: () => void;
+  onBack: () => void;
+  onContinue: () => void;
 }) {
   const [form, setForm] = useState({
-    amount: '1500000',
+    amount: '1.500.000',
     currency: 'COP',
     dueDate: nextYear(),
     creditorName: 'Banco Demo S.A.',
@@ -82,83 +85,80 @@ export function SignStep({
     if (signed) setDocument(signed);
   }
 
+  const signed = document?.status === 'SIGNED';
+
   return (
-    <Page className="lg:flex-row lg:items-start">
-      <Card className="min-w-0 lg:w-96 lg:shrink-0 sm:!p-7">
-        <form onSubmit={generate} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <h1 className="text-[22px] font-bold tracking-tight sm:text-2xl">Promissory note</h1>
-            <p className="text-sm leading-relaxed text-muted">
-              Filled with the validated identity. Only approved validations can generate documents.
-            </p>
-          </div>
-          <Field label="Amount" inputMode="decimal" value={form.amount} onChange={set('amount')} />
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Currency" value={form.currency} onChange={set('currency')} />
-            <Field label="Due date" type="date" value={form.dueDate} onChange={set('dueDate')} />
-          </div>
-          <Field label="Creditor" value={form.creditorName} onChange={set('creditorName')} />
-          <Field
-            label="City"
-            placeholder="Capital of the country"
-            hint="Empty: the capital returned by the countries API"
-            value={form.city}
-            onChange={set('city')}
-          />
-          <Button type="submit" variant="secondary" disabled={busy || document?.status === 'SIGNED'}>
+    <div>
+      <StepHeader
+        icon="file"
+        title="Generate and sign the promissory note"
+        subtitle="Filled with the validated identity. Its SHA-256 goes to the immutable audit trail."
+      />
+
+      <form onSubmit={generate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Amount" inputMode="decimal" value={form.amount} onChange={set('amount')} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Currency" maxLength={3} value={form.currency} onChange={set('currency')} />
+          <Field label="Due date" type="date" value={form.dueDate} onChange={set('dueDate')} />
+        </div>
+        <Field label="Creditor" value={form.creditorName} onChange={set('creditorName')} />
+        <Field
+          label="City (optional)"
+          placeholder="Capital of the country"
+          value={form.city}
+          onChange={set('city')}
+        />
+        <div className="sm:col-span-2">
+          <Button type="submit" variant="secondary" icon="file" disabled={busy || signed} className="w-full">
             {document ? 'Generate a new version' : 'Generate document'}
           </Button>
-        </form>
-      </Card>
+        </div>
+      </form>
 
-      <section className="flex min-w-0 flex-col gap-4 lg:flex-1">
-        <ErrorBanner error={error} />
-        {document ? (
-          <>
-            <article
-              ref={preview}
-              className="flex scroll-mt-28 flex-col gap-3.5 rounded-xl border border-line bg-white px-5 py-6 sm:px-10 sm:py-8"
+      <ErrorBanner error={error} />
+
+      {document && (
+        <article ref={preview} className="mt-6 scroll-mt-28 overflow-hidden rounded-xl border border-line">
+          <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas px-4 py-2.5">
+            <span className="text-xs font-medium text-muted">Promissory note · demo, no legal value</span>
+            <span
+              className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                signed ? 'border-[#abefc6] bg-success-soft text-success' : 'border-line bg-white text-muted'
+              }`}
             >
-              <pre lang="es" className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-[#23303d] sm:text-[15px]">
-                {document.content}
-              </pre>
-              <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-field pt-4">
-                <span className="text-xs text-subtle">SHA-256 recorded in the audit trail</span>
-                <code className="break-all font-mono text-xs">{document.contentHash}</code>
-              </div>
-            </article>
-            <div className="sticky bottom-3 flex flex-col gap-4 rounded-xl border border-line bg-white px-5 py-4 shadow-[0_8px_24px_rgba(19,32,46,0.12)] sm:static sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:px-6 sm:py-5 sm:shadow-none">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-subtle">Validation to signature</span>
-                <span className="font-mono text-2xl font-medium sm:text-[28px]">
-                  {document.signature ? formatElapsed(document.signature.elapsedMs) : '--:--'}
-                </span>
-                <span className="text-xs text-subtle">
-                  AUCO reported 46 s per signature in 2022 (Portafolio)
-                </span>
-              </div>
-              <div className="flex flex-col gap-2 sm:items-end">
-                {document.status === 'SIGNED' ? (
-                  <Button onClick={onTimeline}>See audit timeline</Button>
-                ) : (
-                  <Button onClick={sign} disabled={busy}>
-                    Sign document
-                  </Button>
-                )}
-                <span className="text-xs text-subtle">
-                  {document.signature
-                    ? `Signed from ${document.signature.ip}`
-                    : 'Records time, IP and user agent'}
-                </span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-field p-6 text-center text-sm text-subtle sm:min-h-80 sm:p-8">
-            The generated document and its hash appear here.
+              {signed ? 'Signed' : 'Pending signature'}
+            </span>
           </div>
+          <pre lang="es" className="whitespace-pre-wrap break-words px-4 py-5 font-sans text-sm leading-relaxed text-ink sm:px-6">
+            {document.content}
+          </pre>
+          <div className="flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex min-w-0 items-start gap-2">
+              <Icon name="hash" className="mt-0.5 size-4 shrink-0 text-subtle" />
+              <code className="break-all font-mono text-xs text-muted">{document.contentHash}</code>
+            </div>
+            <div className="flex shrink-0 flex-col sm:items-end">
+              <span className="font-mono text-lg font-medium text-ink">
+                {document.signature ? formatElapsed(document.signature.elapsedMs) : '--:--'}
+              </span>
+              <span className="text-xs text-subtle">validation → signature (AUCO cited 46 s, 2022)</span>
+            </div>
+          </div>
+        </article>
+      )}
+
+      <Actions>
+        <Button type="button" variant="secondary" icon="chevronLeft" onClick={onBack}>
+          Go back
+        </Button>
+        {signed ? (
+          <Button onClick={onContinue}>Continue</Button>
+        ) : (
+          <Button onClick={sign} disabled={!document || busy} icon="pen">
+            Sign document
+          </Button>
         )}
-      </section>
-    </Page>
+      </Actions>
+    </div>
   );
 }

@@ -1,25 +1,26 @@
 @import 'tailwindcss';
 
+/* Neutral, minimal onboarding palette: grey scale, near-black actions, colour only in icons and verdicts. */
 @theme {
-  --color-paper: #f6f5f1;
-  --color-line: #e3e1da;
-  --color-field: #c9c6bd;
-  --color-ink: #13202e;
-  --color-muted: #4a5562;
-  --color-subtle: #5b6673;
-  --color-navy: #0f3d66;
-  --color-navy-soft: #dce6ef;
-  --color-approved: #0b6b4f;
-  --color-approved-soft: #e3f2ec;
-  --color-review: #8a4b00;
-  --color-review-soft: #fbefd9;
-  --color-blocked: #9f1d1d;
-  --color-blocked-soft: #f8e3e3;
+  --color-canvas: #fafafa;
+  --color-line: #e9eaeb;
+  --color-line-strong: #d5d7da;
+  --color-ink: #181d27;
+  --color-ink-strong: #0a0d12;
+  --color-muted: #535862;
+  --color-subtle: #717680;
+  --color-placeholder: #a4a7ae;
+  --color-success: #079455;
+  --color-success-soft: #ecfdf3;
+  --color-warning: #b54708;
+  --color-warning-soft: #fffaeb;
+  --color-error: #d92d20;
+  --color-error-soft: #fef3f2;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-ink);
 }

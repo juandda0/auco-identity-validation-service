@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { api, type AuditEvent, type Verdict } from '@/lib/api';
-import { Button, Card, ErrorBanner, Page, VerdictBadge } from './ui';
+import { Icon, type IconName } from './icons';
+import { Actions, Button, ErrorBanner, StepHeader, VerdictBadge } from './ui';
 
-function describe(event: AuditEvent): string {
-  const parts = [event.occurredAt];
-  if (event.validationId) parts.push(`validation ${event.validationId.slice(0, 8)}…`);
+const EVENT_COPY: Record<AuditEvent['eventType'], { label: string; icon: IconName; tone: string }> = {
+  VALIDATION_CREATED: { label: 'Identity validated', icon: 'idCard', tone: 'bg-canvas text-muted' },
+  VALIDATION_FAILED: { label: 'Failed attempt', icon: 'x', tone: 'bg-error-soft text-error' },
+  DOCUMENT_GENERATED: { label: 'Document generated', icon: 'file', tone: 'bg-canvas text-muted' },
+  DOCUMENT_SIGNED: { label: 'Document signed', icon: 'pen', tone: 'bg-success-soft text-success' },
+};
+
+function details(event: AuditEvent): string {
+  const parts: string[] = [];
   if (event.contentHash) parts.push(`sha256 ${event.contentHash.slice(0, 12)}…`);
   if (event.ip) parts.push(`ip ${event.ip}`);
   if (event.detail) parts.push(event.detail);
@@ -16,10 +23,12 @@ function describe(event: AuditEvent): string {
 export function AuditStep({
   countryCode,
   documentNumber,
+  onBack,
   onRestart,
 }: {
   countryCode: string;
   documentNumber: string;
+  onBack: () => void;
   onRestart: () => void;
 }) {
   const [data, setData] = useState<{ documentKey: string; events: AuditEvent[] } | null>(null);
@@ -30,58 +39,67 @@ export function AuditStep({
   }, [countryCode, documentNumber]);
 
   return (
-    <Page className="lg:flex-row lg:items-start">
-      <Card className="flex min-w-0 flex-col gap-5 sm:gap-6 lg:flex-1">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-          <h1 className="text-[22px] font-bold tracking-tight sm:text-[26px]">Audit timeline</h1>
-          <code className="self-start break-all rounded-md bg-[#eef3f8] px-2.5 py-1 font-mono text-sm text-navy">
-            {countryCode}#{documentNumber}
-          </code>
-        </div>
-        <ErrorBanner error={error} />
-        {data && (
-          <ol className="flex flex-col">
-            {data.events.map((event, i) => {
-              const last = i === data.events.length - 1;
-              return (
-                <li key={event.eventId} className="flex gap-3 sm:gap-4">
-                  <div className="flex flex-col items-center">
-                    <span className={`mt-1 size-3.5 rounded-full ${event.eventType === 'VALIDATION_FAILED' ? 'bg-blocked' : last ? 'bg-approved' : 'bg-navy'}`} />
-                    {!last && <span className="w-0.5 flex-1 bg-navy-soft" />}
-                  </div>
-                  <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-6'}`}>
-                    <span className="flex flex-wrap items-center gap-2 break-all text-sm font-semibold sm:text-[15px]">
-                      {event.eventType}
-                      {event.verdict && <VerdictBadge verdict={event.verdict as Verdict} />}
-                    </span>
-                    <span className="break-all font-mono text-xs text-subtle">{describe(event)}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        <Button variant="secondary" className="sm:self-start" onClick={onRestart}>
-          Start a new validation
-        </Button>
-      </Card>
+    <div>
+      <StepHeader
+        icon="list"
+        title="Audit trail"
+        subtitle={
+          <>
+            Every event of <span className="font-mono text-ink">{countryCode}#{documentNumber}</span>, read
+            from DynamoDB with one query. Events are append-only.
+          </>
+        }
+      />
+      <ErrorBanner error={error} />
 
-      <aside className="flex min-w-0 flex-col gap-3.5 rounded-xl bg-ink p-5 text-[#e8ecf1] sm:p-6 lg:w-80 lg:shrink-0">
-        <h2 className="text-[15px] font-semibold text-white">How it is stored</h2>
-        <dl className="flex flex-col gap-3 text-[13px] leading-normal">
-          {[
-            ['PK documentKey', 'country#document: the whole history in one Query'],
-            ['SK sk', 'timestamp#eventId: chronological order, no collisions'],
-            ['GSI phone-index', 'phone → documents, for the shared-phone signal'],
-            ['Append-only', 'conditional writes: events are never overwritten'],
-          ].map(([term, description]) => (
-            <div key={term}>
-              <dt className="font-mono text-[#9fc3e6]">{term}</dt>
-              <dd className="mt-0.5">{description}</dd>
-            </div>
-          ))}
-        </dl>
-      </aside>
-    </Page>
+      {data && (
+        <ol className="flex flex-col">
+          {data.events.map((event, i) => {
+            const copy = EVENT_COPY[event.eventType];
+            const last = i === data.events.length - 1;
+            const extra = details(event);
+            return (
+              <li key={event.eventId} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${copy.tone}`}>
+                    <Icon name={copy.icon} className="size-4" />
+                  </span>
+                  {!last && <span className="my-1 w-px flex-1 bg-line" />}
+                </div>
+                <div className={`flex min-w-0 flex-col gap-0.5 ${last ? '' : 'pb-5'}`}>
+                  <span className="flex flex-wrap items-center gap-2 pt-1 text-sm font-semibold text-ink">
+                    {copy.label}
+                    {event.verdict && <VerdictBadge verdict={event.verdict as Verdict} />}
+                  </span>
+                  <span className="text-xs text-subtle">{new Date(event.occurredAt).toLocaleString()}</span>
+                  {extra && <span className="break-all font-mono text-xs text-subtle">{extra}</span>}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      <dl className="mt-6 grid grid-cols-1 gap-3 rounded-xl bg-canvas p-4 text-sm sm:grid-cols-2">
+        {[
+          ['PK documentKey', 'country#document: the whole history in one query'],
+          ['SK sk', 'timestamp#eventId: chronological order, no collisions'],
+          ['GSI phone-index', 'phone → documents, for the shared-phone signal'],
+          ['Append-only', 'conditional writes: events are never overwritten'],
+        ].map(([term, description]) => (
+          <div key={term}>
+            <dt className="font-mono text-xs font-medium text-ink">{term}</dt>
+            <dd className="mt-0.5 text-xs text-subtle">{description}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <Actions>
+        <Button type="button" variant="secondary" icon="chevronLeft" onClick={onBack}>
+          Go back
+        </Button>
+        <Button onClick={onRestart}>New validation</Button>
+      </Actions>
+    </div>
   );
 }
