@@ -1,12 +1,7 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { AuditUnavailableError } from '../shared/errors.js';
-import {
-  countryCodeSchema,
-  documentNumberSchema,
-  errorResponseSchema,
-} from '../validations/schemas.js';
-import { documentKeyOf, type AuditRepository } from './audit-event.js';
+import type { AuditService } from '../../../application/audit-service.js';
+import { countryCodeSchema, documentNumberSchema, errorResponseSchema } from '../schemas.js';
 
 const auditEventSchema = z.object({
   eventId: z.string(),
@@ -28,9 +23,9 @@ const auditEventSchema = z.object({
   detail: z.string().optional(),
 });
 
-export const auditRoutes: FastifyPluginAsyncZod<{ audit: AuditRepository }> = async (
+export const auditRoutes: FastifyPluginAsyncZod<{ service: AuditService }> = async (
   app,
-  { audit },
+  { service },
 ) => {
   app.get(
     '/audit/:countryCode/:documentNumber',
@@ -46,12 +41,6 @@ export const auditRoutes: FastifyPluginAsyncZod<{ audit: AuditRepository }> = as
         },
       },
     },
-    async (request) => {
-      const documentKey = documentKeyOf(request.params.countryCode, request.params.documentNumber);
-      const events = await audit.listByDocument(documentKey).catch((error: unknown) => {
-        throw new AuditUnavailableError('Audit history is unavailable', { cause: error });
-      });
-      return { documentKey, events };
-    },
+    async (request) => service.timeline(request.params.countryCode, request.params.documentNumber),
   );
 };

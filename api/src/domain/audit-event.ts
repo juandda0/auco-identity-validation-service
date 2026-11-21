@@ -32,18 +32,6 @@ export interface AuditEvent {
   detail?: string;
 }
 
-export type NewAuditEvent = Omit<AuditEvent, 'documentKey' | 'sk' | 'eventId' | 'occurredAt'> & {
-  occurredAt?: Date;
-};
-
-export interface AuditRepository {
-  append(event: NewAuditEvent): Promise<AuditEvent>;
-  /** Oldest first: the sort key starts with the ISO timestamp. */
-  listByDocument(documentKey: string): Promise<AuditEvent[]>;
-  /** Oldest first, read from the phone-index GSI (eventually consistent). */
-  listByPhone(phone: string): Promise<AuditEvent[]>;
-}
-
 export function documentKeyOf(countryCode: string, documentNumber: string): string {
   return `${countryCode}#${documentNumber}`;
 }

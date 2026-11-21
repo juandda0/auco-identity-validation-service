@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { CountryNotFoundError, UpstreamUnavailableError } from '../src/shared/errors.js';
+import { CountryNotFoundError, UpstreamUnavailableError } from '../src/application/errors.js';
 import { buildTestApp } from './support/build-test-app.js';
 import { fakeCountries } from './support/fakes.js';
 

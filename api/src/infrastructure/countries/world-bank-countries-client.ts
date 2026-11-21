@@ -3,19 +3,9 @@ import {
   CountryNotFoundError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
-} from '../shared/errors.js';
-
-export interface CountryInfo {
-  code: string;
-  name: string;
-  region: string;
-  incomeLevel: string;
-  capital: string | null;
-}
-
-export interface CountriesClient {
-  getByCode(countryCode: string): Promise<CountryInfo>;
-}
+} from '../../application/errors.js';
+import type { CountriesClient } from '../../application/ports.js';
+import type { CountryInfo } from '../../domain/country.js';
 
 export interface CountriesClientOptions {
   baseUrl: string;
@@ -50,7 +40,8 @@ const errorSchema = z.tuple([z.object({ message: z.array(z.object({ key: z.strin
 
 const AGGREGATE_REGION_ID = 'NA';
 
-export function createCountriesClient(options: CountriesClientOptions): CountriesClient {
+/** Adapter for the CountriesClient port backed by the World Bank Countries API. */
+export function createWorldBankCountriesClient(options: CountriesClientOptions): CountriesClient {
   const {
     baseUrl,
     timeoutMs,

@@ -1,51 +1,64 @@
-import { ObjectId } from 'mongodb';
-import type { FastifyBaseLogger } from 'fastify';
-import type { CountriesClient } from '../clients/countries.js';
-import { documentKeyOf, type AuditRepository } from '../audit/audit-event.js';
-import { assessRisk } from '../risk/risk-engine.js';
-import { AuditUnavailableError, CountryNotFoundError, NotFoundError } from '../shared/errors.js';
-import { normalizeName } from '../shared/normalize.js';
-import { failedAttemptSchema, type CreateValidationInput } from './schemas.js';
-import type { ValidationRecord, ValidationRepository } from './validation.js';
+import { documentKeyOf } from '../domain/audit-event.js';
+import type { CountryInfo } from '../domain/country.js';
+import { normalizeName } from '../domain/normalize.js';
+import { assessRisk } from '../domain/risk-engine.js';
+import type { ValidationRecord } from '../domain/validation.js';
+import { AuditUnavailableError, CountryNotFoundError, NotFoundError } from './errors.js';
+import type { AuditRepository, CountriesClient, Logger, ValidationRepository } from './ports.js';
+
+/** Already validated and normalized by the presentation layer. */
+export interface CreateValidationInput {
+  name: string;
+  documentNumber: string;
+  countryCode: string;
+  phone?: string | undefined;
+}
+
+/** Identifies a document even when the rest of the request was invalid. */
+export interface DocumentIdentity {
+  countryCode: string;
+  documentNumber: string;
+}
 
 export interface ValidationServiceDeps {
   countries: CountriesClient;
   validations: ValidationRepository;
   audit: AuditRepository;
-  logger: Pick<FastifyBaseLogger, 'error' | 'warn'>;
-  newId?: () => string;
+  logger: Logger;
+  /** Generates record ids (the composition root uses MongoDB ObjectIds). */
+  newId: () => string;
   now?: () => Date;
 }
 
 export type ValidationService = ReturnType<typeof createValidationService>;
 
 export function createValidationService(deps: ValidationServiceDeps) {
-  const { countries, validations, audit, logger } = deps;
-  const newId = deps.newId ?? (() => new ObjectId().toHexString());
+  const { countries, validations, audit, logger, newId } = deps;
   const now = deps.now ?? (() => new Date());
 
   /** Best effort: a failed attempt that cannot be audited must not hide the original error. */
-  async function auditFailure(countryCode: string, documentNumber: string, detail: string) {
+  async function recordFailedAttempt(identity: DocumentIdentity, reason: string): Promise<void> {
     try {
-      await audit.append({ eventType: 'VALIDATION_FAILED', countryCode, documentNumber, detail });
+      await audit.append({ eventType: 'VALIDATION_FAILED', ...identity, detail: reason });
     } catch (error) {
-      logger.warn({ err: error, countryCode, documentNumber }, 'Could not audit failed attempt');
+      logger.warn({ err: error, ...identity }, 'Could not audit failed attempt');
     }
   }
 
   return {
+    recordFailedAttempt,
+
     async create(input: CreateValidationInput): Promise<ValidationRecord> {
       const documentKey = documentKeyOf(input.countryCode, input.documentNumber);
 
-      // 1. Enrich. Countries errors (422 / 502 / 504) propagate to the error handler.
-      //    An unknown country is the person's mistake, so it counts as a failed attempt;
-      //    an upstream outage is ours, so it does not.
-      let country;
+      // 1. Enrich. An unknown country is the person's mistake, so it counts as a
+      //    failed attempt; an upstream outage is ours, so it does not.
+      let country: CountryInfo;
       try {
         country = await countries.getByCode(input.countryCode);
       } catch (error) {
         if (error instanceof CountryNotFoundError) {
-          await auditFailure(input.countryCode, input.documentNumber, error.code);
+          await recordFailedAttempt(input, error.code);
         }
         throw error;
       }
@@ -83,7 +96,7 @@ export function createValidationService(deps: ValidationServiceDeps) {
       await validations.insert(record);
 
       // 4. Audit. A validation without its audit event must not exist, so if
-      //    DynamoDB fails the MongoDB insert is compensated (deleted).
+      //    the audit write fails the insert is compensated (deleted).
       try {
         await audit.append({
           eventType: 'VALIDATION_CREATED',
@@ -111,16 +124,6 @@ export function createValidationService(deps: ValidationServiceDeps) {
       }
 
       return record;
-    },
-
-    /**
-     * Called when the request body is invalid. If it still identifies a
-     * document, the attempt is audited so repeated failures can be detected.
-     */
-    async recordInvalidAttempt(rawBody: unknown): Promise<void> {
-      const parsed = failedAttemptSchema.safeParse(rawBody);
-      if (!parsed.success) return;
-      await auditFailure(parsed.data.countryCode, parsed.data.documentNumber, 'VALIDATION_ERROR');
     },
 
     async getById(id: string): Promise<ValidationRecord> {

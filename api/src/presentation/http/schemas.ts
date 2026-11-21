@@ -27,12 +27,10 @@ export const createValidationBodySchema = z.object({
     .optional(),
 });
 
-export type CreateValidationInput = z.infer<typeof createValidationBodySchema>;
-
 /**
  * When a request fails validation but still identifies a document (valid
- * documentNumber and country), the attempt is audited as VALIDATION_FAILED.
- * Repeated failures are one of the risk signals.
+ * documentNumber and country), the route reports it to the service, which
+ * audits it as VALIDATION_FAILED. Repeated failures are one of the risk signals.
  */
 export const failedAttemptSchema = z.object({
   documentNumber: documentNumberSchema,

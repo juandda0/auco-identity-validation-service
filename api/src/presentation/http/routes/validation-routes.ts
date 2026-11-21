@@ -1,14 +1,15 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import type { ValidationService } from './validation-service.js';
-import type { ValidationRecord } from './validation.js';
+import type { ValidationService } from '../../../application/validation-service.js';
+import type { ValidationRecord } from '../../../domain/validation.js';
 import {
   createValidationBodySchema,
   createValidationResponseSchema,
   errorResponseSchema,
+  failedAttemptSchema,
   objectIdSchema,
   validationResponseSchema,
-} from './schemas.js';
+} from '../schemas.js';
 
 export interface ValidationRoutesOptions {
   service: ValidationService;
@@ -39,7 +40,9 @@ export const validationRoutes: FastifyPluginAsyncZod<ValidationRoutesOptions> = 
     },
     async (request, reply) => {
       if (request.validationError) {
-        await service.recordInvalidAttempt(request.body);
+        // An invalid request that still identifies a document counts as a failed attempt.
+        const identity = failedAttemptSchema.safeParse(request.body);
+        if (identity.success) await service.recordFailedAttempt(identity.data, 'VALIDATION_ERROR');
         throw request.validationError;
       }
       const record = await service.create(request.body);

@@ -1,5 +1,6 @@
 import { ObjectId, type Collection, type Db } from 'mongodb';
-import type { ValidationRecord, ValidationRepository } from './validation.js';
+import type { ValidationRepository } from '../../application/ports.js';
+import type { ValidationRecord } from '../../domain/validation.js';
 
 type ValidationDocument = Omit<ValidationRecord, 'id'> & { _id: ObjectId };
 

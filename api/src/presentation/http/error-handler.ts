@@ -1,9 +1,28 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
-import { AppError } from './errors.js';
+import {
+  AppError,
+  AuditUnavailableError,
+  ConflictError,
+  CountryNotFoundError,
+  NotFoundError,
+  UpstreamTimeoutError,
+  UpstreamUnavailableError,
+} from '../../application/errors.js';
 
 interface ErrorBody {
   error: { code: string; message: string; details?: { path: string; message: string }[] };
+}
+
+/** The only place that knows how application errors become HTTP status codes. */
+export function httpStatusOf(error: Error): number {
+  if (error instanceof NotFoundError) return 404;
+  if (error instanceof ConflictError) return 409;
+  if (error instanceof CountryNotFoundError) return 422;
+  if (error instanceof UpstreamUnavailableError) return 502;
+  if (error instanceof AuditUnavailableError) return 503;
+  if (error instanceof UpstreamTimeoutError) return 504;
+  return 500;
 }
 
 /** Single place where errors become HTTP responses with one consistent shape. */
@@ -23,11 +42,12 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
   }
 
   if (error instanceof AppError) {
-    if (error.statusCode >= 500) {
+    const status = httpStatusOf(error);
+    if (status >= 500) {
       request.log.warn({ err: error, cause: error.cause }, error.message);
     }
     return reply
-      .code(error.statusCode)
+      .code(status)
       .send({ error: { code: error.code, message: error.message } } satisfies ErrorBody);
   }
 

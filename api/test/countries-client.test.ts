@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createCountriesClient } from '../src/clients/countries.js';
+import { createWorldBankCountriesClient } from '../src/infrastructure/countries/world-bank-countries-client.js';
 import {
   CountryNotFoundError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
-} from '../src/shared/errors.js';
+} from '../src/application/errors.js';
 
 // Real payloads captured from api.worldbank.org with curl (trimmed).
 const colombiaPayload = [
@@ -52,7 +52,7 @@ const hangingFetch: typeof fetch = (_input, init) =>
   });
 
 function client(fetchFn: typeof fetch, timeoutMs = 1000) {
-  return createCountriesClient({
+  return createWorldBankCountriesClient({
     baseUrl: 'https://wb.test/v2',
     timeoutMs,
     retryDelayMs: 0,
@@ -100,14 +100,14 @@ describe('countries client (World Bank API)', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('gives up after one retry with UPSTREAM_UNAVAILABLE (502)', async () => {
+  it('gives up after one retry with UPSTREAM_UNAVAILABLE', async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(json({}, 500));
 
     const error = await client(fetchFn)
       .getByCode('CO')
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UpstreamUnavailableError);
-    expect(error).toMatchObject({ statusCode: 502 });
+    expect(error).toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
@@ -119,14 +119,14 @@ describe('countries client (World Bank API)', () => {
     await expect(client(garbage).getByCode('CO')).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 
-  it('times out with UPSTREAM_TIMEOUT (504) after retrying once', async () => {
+  it('times out with UPSTREAM_TIMEOUT after retrying once', async () => {
     const fetchFn = vi.fn<typeof fetch>(hangingFetch);
 
     const error = await client(fetchFn, 20)
       .getByCode('CO')
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UpstreamTimeoutError);
-    expect(error).toMatchObject({ statusCode: 504 });
+    expect(error).toMatchObject({ code: 'UPSTREAM_TIMEOUT' });
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 

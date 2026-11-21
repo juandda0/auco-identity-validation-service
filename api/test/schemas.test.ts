@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createValidationBodySchema } from '../src/validations/schemas.js';
-import { normalizeName } from '../src/shared/normalize.js';
+import { createValidationBodySchema } from '../src/presentation/http/schemas.js';
+import { normalizeName } from '../src/domain/normalize.js';
 
 describe('createValidationBodySchema', () => {
   it('accepts the minimal contract from the exercise (name + documentNumber) and defaults the country to CO', () => {

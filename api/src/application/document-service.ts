@@ -1,17 +1,16 @@
-import { ObjectId } from 'mongodb';
-import type { FastifyBaseLogger } from 'fastify';
-import { documentKeyOf, type AuditRepository } from '../audit/audit-event.js';
-import { AuditUnavailableError, ConflictError, NotFoundError } from '../shared/errors.js';
-import type { ValidationRepository } from '../validations/validation.js';
-import type { DocumentRecord, DocumentRepository, PromissoryNoteFields } from './document.js';
-import { renderPromissoryNote, sha256 } from './promissory-note.js';
+import { documentKeyOf } from '../domain/audit-event.js';
+import type { DocumentRecord, PromissoryNoteFields } from '../domain/document.js';
+import { renderPromissoryNote, sha256 } from '../domain/promissory-note.js';
+import { AuditUnavailableError, ConflictError, NotFoundError } from './errors.js';
+import type { AuditRepository, DocumentRepository, Logger, ValidationRepository } from './ports.js';
 
 export interface DocumentServiceDeps {
   validations: ValidationRepository;
   documents: DocumentRepository;
   audit: AuditRepository;
-  logger: Pick<FastifyBaseLogger, 'error' | 'warn'>;
-  newId?: () => string;
+  logger: Logger;
+  /** Generates document ids (the composition root uses MongoDB ObjectIds). */
+  newId: () => string;
   now?: () => Date;
 }
 
@@ -27,8 +26,7 @@ export interface SignatureContext {
 export type DocumentService = ReturnType<typeof createDocumentService>;
 
 export function createDocumentService(deps: DocumentServiceDeps) {
-  const { validations, documents, audit, logger } = deps;
-  const newId = deps.newId ?? (() => new ObjectId().toHexString());
+  const { validations, documents, audit, logger, newId } = deps;
   const now = deps.now ?? (() => new Date());
 
   async function getValidation(id: string) {

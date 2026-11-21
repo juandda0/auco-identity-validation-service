@@ -29,16 +29,3 @@ export interface DocumentRecord {
   signature: Signature | null;
   createdAt: Date;
 }
-
-export interface DocumentRepository {
-  insert(document: DocumentRecord): Promise<void>;
-  findById(id: string): Promise<DocumentRecord | null>;
-  deleteById(id: string): Promise<void>;
-  /**
-   * Atomically moves PENDING_SIGNATURE -> SIGNED. Returns false when the
-   * document was already signed (e.g. a double click), so only one wins.
-   */
-  markSigned(id: string, signature: Signature): Promise<boolean>;
-  /** Compensation when the signature cannot be audited. */
-  revertSignature(id: string): Promise<void>;
-}

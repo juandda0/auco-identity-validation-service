@@ -12,9 +12,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createDynamoAuditRepository,
   ensureAuditTable,
-} from '../../src/audit/dynamo-audit-repository.js';
-import { createMongoDocumentRepository } from '../../src/documents/mongo-document-repository.js';
-import type { DocumentRecord } from '../../src/documents/document.js';
+} from '../../src/infrastructure/persistence/dynamo-audit-repository.js';
+import { createMongoDocumentRepository } from '../../src/infrastructure/persistence/mongo-document-repository.js';
+import type { DocumentRecord } from '../../src/domain/document.js';
 
 const dynamo = new DynamoDBClient({
   region: 'us-east-1',

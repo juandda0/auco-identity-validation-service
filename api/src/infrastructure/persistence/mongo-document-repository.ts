@@ -1,5 +1,6 @@
 import { ObjectId, type Collection, type Db } from 'mongodb';
-import type { DocumentRecord, DocumentRepository } from './document.js';
+import type { DocumentRepository } from '../../application/ports.js';
+import type { DocumentRecord } from '../../domain/document.js';
 
 type MongoDocument = Omit<DocumentRecord, 'id'> & { _id: ObjectId };
 

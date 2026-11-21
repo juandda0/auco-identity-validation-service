@@ -6,7 +6,7 @@
 import awsLambdaFastify from '@fastify/aws-lambda';
 import pino from 'pino';
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { buildApp } from './app.js';
+import { buildApp } from './presentation/http/app.js';
 import { loadConfig } from './config.js';
 import { createContainer } from './container.js';
 

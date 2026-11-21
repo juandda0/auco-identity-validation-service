@@ -1,13 +1,17 @@
-import { randomUUID } from 'node:crypto';
-import type { CountriesClient, CountryInfo } from '../../src/clients/countries.js';
-import {
-  documentKeyOf,
-  sortKeyOf,
-  type AuditEvent,
-  type AuditRepository,
-} from '../../src/audit/audit-event.js';
-import type { DocumentRecord, DocumentRepository } from '../../src/documents/document.js';
-import type { ValidationRecord, ValidationRepository } from '../../src/validations/validation.js';
+import { randomBytes, randomUUID } from 'node:crypto';
+import type {
+  AuditRepository,
+  CountriesClient,
+  DocumentRepository,
+  ValidationRepository,
+} from '../../src/application/ports.js';
+import { documentKeyOf, sortKeyOf, type AuditEvent } from '../../src/domain/audit-event.js';
+import type { CountryInfo } from '../../src/domain/country.js';
+import type { DocumentRecord } from '../../src/domain/document.js';
+import type { ValidationRecord } from '../../src/domain/validation.js';
+
+/** 24 hex characters, like a MongoDB ObjectId. */
+export const newTestId = () => randomBytes(12).toString('hex');
 
 export const COLOMBIA: CountryInfo = {
   code: 'CO',

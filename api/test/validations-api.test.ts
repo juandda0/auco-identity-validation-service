@@ -4,7 +4,7 @@ import {
   CountryNotFoundError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
-} from '../src/shared/errors.js';
+} from '../src/application/errors.js';
 import { buildTestApp } from './support/build-test-app.js';
 import { fakeCountries } from './support/fakes.js';
 

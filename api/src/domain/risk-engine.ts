@@ -1,4 +1,4 @@
-import type { AuditEvent } from '../audit/audit-event.js';
+import type { AuditEvent } from './audit-event.js';
 
 /*
  * Small rule-based risk engine inspired by the fraud signals AUCO published in

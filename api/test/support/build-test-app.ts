@@ -1,11 +1,13 @@
-import { buildApp } from '../../src/app.js';
-import { createDocumentService } from '../../src/documents/document-service.js';
-import { createValidationService } from '../../src/validations/validation-service.js';
+import { createAuditService } from '../../src/application/audit-service.js';
+import { createDocumentService } from '../../src/application/document-service.js';
+import { createValidationService } from '../../src/application/validation-service.js';
+import { buildApp } from '../../src/presentation/http/app.js';
 import {
   fakeCountries,
   inMemoryAudit,
   inMemoryDocuments,
   inMemoryValidations,
+  newTestId,
   silentLogger,
 } from './fakes.js';
 
@@ -16,10 +18,11 @@ export async function buildTestApp(options: { countries?: ReturnType<typeof fake
   const documents = inMemoryDocuments();
   const audit = inMemoryAudit();
   const logger = silentLogger;
+  const newId = newTestId;
   const app = await buildApp({
-    validationService: createValidationService({ countries, validations, audit, logger }),
-    documentService: createDocumentService({ validations, documents, audit, logger }),
-    audit,
+    validationService: createValidationService({ countries, validations, audit, logger, newId }),
+    documentService: createDocumentService({ validations, documents, audit, logger, newId }),
+    auditService: createAuditService({ audit }),
     corsOrigin: '*',
     healthCheck: async () => ({ mongo: true, dynamo: true }),
   });

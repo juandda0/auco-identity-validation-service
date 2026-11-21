@@ -12,13 +12,8 @@ import {
   QueryCommand,
   type QueryCommandInput,
 } from '@aws-sdk/lib-dynamodb';
-import {
-  documentKeyOf,
-  sortKeyOf,
-  type AuditEvent,
-  type AuditRepository,
-  type NewAuditEvent,
-} from './audit-event.js';
+import type { AuditRepository, NewAuditEvent } from '../../application/ports.js';
+import { documentKeyOf, sortKeyOf, type AuditEvent } from '../../domain/audit-event.js';
 
 export const PHONE_INDEX = 'phone-index';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AuditEvent } from '../src/audit/audit-event.js';
-import { assessRisk, type RiskInput } from '../src/risk/risk-engine.js';
+import type { AuditEvent } from '../src/domain/audit-event.js';
+import { assessRisk, type RiskInput } from '../src/domain/risk-engine.js';
 
 const NOW = new Date('2026-11-20T12:00:00.000Z');
 const HOUR = 60 * 60 * 1000;

@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { buildApp } from './app.js';
+import { buildApp } from './presentation/http/app.js';
 import { loadConfig } from './config.js';
 import { createContainer } from './container.js';
 

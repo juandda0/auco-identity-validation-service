@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { errorResponseSchema, objectIdSchema } from '../validations/schemas.js';
-import type { DocumentRecord } from './document.js';
-import type { DocumentService } from './document-service.js';
+import type { DocumentService } from '../../../application/document-service.js';
+import type { DocumentRecord } from '../../../domain/document.js';
+import { errorResponseSchema, objectIdSchema } from '../schemas.js';
 
 /** Today's date (YYYY-MM-DD) in Colombia; a UTC date would already be "tomorrow" after 19:00. */
 function todayInColombia(): string {

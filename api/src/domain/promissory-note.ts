@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ValidationRecord } from '../validations/validation.js';
+import type { ValidationRecord } from './validation.js';
 import type { PromissoryNoteFields } from './document.js';
 
 /**

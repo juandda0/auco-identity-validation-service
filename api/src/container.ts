@@ -1,20 +1,29 @@
+/**
+ * Composition root: the only module that knows every layer. It builds the
+ * infrastructure adapters (MongoDB, DynamoDB, World Bank API) and injects them
+ * into the application services, which the presentation layer then exposes.
+ */
 import { DescribeTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import type { FastifyBaseLogger } from 'fastify';
+import { createAuditService } from './application/audit-service.js';
+import { createDocumentService } from './application/document-service.js';
+import { createValidationService } from './application/validation-service.js';
 import type { Config } from './config.js';
-import type { AppDependencies } from './app.js';
-import { createCountriesClient } from './clients/countries.js';
-import { createDynamoAuditRepository, ensureAuditTable } from './audit/dynamo-audit-repository.js';
+import { createWorldBankCountriesClient } from './infrastructure/countries/world-bank-countries-client.js';
+import {
+  createDynamoAuditRepository,
+  ensureAuditTable,
+} from './infrastructure/persistence/dynamo-audit-repository.js';
+import { createMongoDocumentRepository } from './infrastructure/persistence/mongo-document-repository.js';
 import {
   createMongoValidationRepository,
   ensureValidationIndexes,
-} from './validations/mongo-validation-repository.js';
-import { createValidationService } from './validations/validation-service.js';
-import { createDocumentService } from './documents/document-service.js';
-import { createMongoDocumentRepository } from './documents/mongo-document-repository.js';
+} from './infrastructure/persistence/mongo-validation-repository.js';
+import type { AppDependencies } from './presentation/http/app.js';
 
-/** Wires real infrastructure (MongoDB, DynamoDB, World Bank API) into the app. */
 export async function createContainer(config: Config, logger: FastifyBaseLogger) {
+  // Infrastructure
   const mongo = new MongoClient(config.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
   await mongo.connect();
   const db = mongo.db(config.MONGO_DB);
@@ -32,23 +41,19 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
   await ensureValidationIndexes(db);
 
   const audit = createDynamoAuditRepository(dynamo, config.DYNAMO_TABLE);
-  const countries = createCountriesClient({
+  const validations = createMongoValidationRepository(db);
+  const documents = createMongoDocumentRepository(db);
+  const countries = createWorldBankCountriesClient({
     baseUrl: config.COUNTRIES_API_URL,
     timeoutMs: config.COUNTRIES_TIMEOUT_MS,
   });
-  const validations = createMongoValidationRepository(db);
-  const validationService = createValidationService({ countries, validations, audit, logger });
-  const documentService = createDocumentService({
-    validations,
-    documents: createMongoDocumentRepository(db),
-    audit,
-    logger,
-  });
+  const newId = () => new ObjectId().toHexString();
 
+  // Application
   const deps: AppDependencies = {
-    validationService,
-    documentService,
-    audit,
+    validationService: createValidationService({ countries, validations, audit, logger, newId }),
+    documentService: createDocumentService({ validations, documents, audit, logger, newId }),
+    auditService: createAuditService({ audit }),
     corsOrigin: config.CORS_ORIGIN,
     healthCheck: async () => {
       const [mongoOk, dynamoOk] = await Promise.all([

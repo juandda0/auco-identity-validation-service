@@ -6,19 +6,19 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 
 | Required by the exercise | Where |
 |---|---|
-| `POST /validations`: name + document → public API → MongoDB → id | [`api/src/validations`](api/src/validations) |
+| `POST /validations`: name + document → public API → MongoDB → id | [`validation-service.ts`](api/src/application/validation-service.ts) |
 | `GET /validations/:id` | same |
-| Audit event in DynamoDB Local keyed by document and date | [`api/src/audit`](api/src/audit) |
-| Input validation | Zod schemas, [`schemas.ts`](api/src/validations/schemas.ts) |
-| External API error handling | [`countries.ts`](api/src/clients/countries.ts) |
+| Audit event in DynamoDB Local keyed by document and date | [`dynamo-audit-repository.ts`](api/src/infrastructure/persistence/dynamo-audit-repository.ts) |
+| Input validation | Zod schemas, [`schemas.ts`](api/src/presentation/http/schemas.ts) |
+| External API error handling | [`world-bank-countries-client.ts`](api/src/infrastructure/countries/world-bank-countries-client.ts) |
 | At least 3 automated tests | 54 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
 | README | this file |
 
 | Extra | Where |
 |---|---|
-| Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`api/src/risk`](api/src/risk) |
-| Promissory note with tamper-evident signature | [`api/src/documents`](api/src/documents) |
-| Audit timeline endpoint | [`audit-routes.ts`](api/src/audit/audit-routes.ts) |
+| Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
+| Promissory note with tamper-evident signature | [`document-service.ts`](api/src/application/document-service.ts) |
+| Audit timeline endpoint | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
 | Next.js front end for the whole flow | [`web/`](web) |
 | OpenAPI docs, CI, Lambda entry point, demo script | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
 
@@ -62,7 +62,30 @@ flowchart LR
   RISK --> API
 ```
 
-Routes only translate HTTP. Services receive their dependencies (repositories, countries client, clock), so tests inject in-memory fakes and [`src/lambda.ts`](api/src/lambda.ts) runs the same app behind API Gateway with `@fastify/aws-lambda` (not deployed in this exercise).
+### Layers
+
+The API follows a layered architecture (ports and adapters). Dependencies only point inwards, and **ESLint enforces it** (`no-restricted-imports` per layer in [`eslint.config.js`](api/eslint.config.js)): a forbidden import fails the lint and the CI.
+
+```mermaid
+flowchart TB
+  P["presentation/http<br/>Fastify routes, Zod schemas, error → HTTP status"] --> A
+  A["application<br/>use cases (services), ports (interfaces), errors"] --> D
+  D["domain<br/>models, risk engine, promissory note, key helpers<br/>pure TypeScript, no I/O"]
+  I["infrastructure<br/>MongoDB and DynamoDB repositories, World Bank client"] -->|implements ports| A
+  I --> D
+  C["container.ts (composition root)<br/>server.ts · lambda.ts"] -.->|wires| P & A & I
+```
+
+| Layer | Knows | Must not import |
+|---|---|---|
+| `domain/` | nothing but itself | any other layer, Fastify, MongoDB, AWS SDK, Zod |
+| `application/` | domain | infrastructure, presentation, any framework or database |
+| `presentation/http/` | application, domain | infrastructure, MongoDB, AWS SDK |
+| `infrastructure/` | application ports and errors, domain | presentation, Fastify |
+
+- **Application errors carry a code, not an HTTP status.** Only [`error-handler.ts`](api/src/presentation/http/error-handler.ts) maps them to 404, 409, 422, 502, 503 or 504.
+- **Ports** ([`ports.ts`](api/src/application/ports.ts)) are what the use cases need: repositories, the countries client and a logger. Infrastructure implements them; tests implement them in memory.
+- **Composition root** ([`container.ts`](api/src/container.ts)) is the only module that knows every layer. That is why swapping REST Countries for the World Bank API touched one adapter, why the tests run the real app with in-memory fakes in under a second, and why [`lambda.ts`](api/src/lambda.ts) runs the same app behind API Gateway with `@fastify/aws-lambda` (not deployed in this exercise).
 
 ## API
 
@@ -189,7 +212,7 @@ erDiagram
 
 ## Risk engine
 
-A pure function ([`risk-engine.ts`](api/src/risk/risk-engine.ts)): it receives the history already read from DynamoDB and returns a verdict with human-readable reasons. The rules are inspired by the fraud signals AUCO published in September 2026.
+A pure function in the domain layer ([`risk-engine.ts`](api/src/domain/risk-engine.ts)): it receives the history already read from DynamoDB and returns a verdict with human-readable reasons. The rules are inspired by the fraud signals AUCO published in September 2026.
 
 | Signal | Rule | Verdict |
 |---|---|---|
@@ -240,16 +263,16 @@ npm run test:e2e         # 4 integration tests against real MongoDB and DynamoDB
 ## Project layout
 
 ```
-api/                          Fastify service
-  src/app.ts                  HTTP adapter: plugins, error handler, routes
-  src/container.ts            wires MongoDB, DynamoDB and the countries client
-  src/server.ts · lambda.ts   entry points (container / AWS Lambda)
-  src/clients/countries.ts    World Bank client: timeout, retry, cache, error mapping
-  src/validations/            schemas, routes, service, MongoDB repository
-  src/audit/                  event model, DynamoDB repository, timeline route
-  src/risk/                   risk engine (pure)
-  src/documents/              promissory note, signature
-  test/                       unit + HTTP tests, test/e2e integration tests
+api/src/
+  domain/                     models, risk engine, promissory note, audit key helpers (pure)
+  application/                use cases: validation, document and audit services; ports; errors
+  infrastructure/
+    countries/                World Bank client: timeout, retry, cache, error mapping
+    persistence/              MongoDB and DynamoDB repositories (implement the ports)
+  presentation/http/          Fastify app, routes, Zod schemas, error handler
+  container.ts                composition root
+  server.ts · lambda.ts       entry points (container / AWS Lambda)
+api/test/                     unit + HTTP tests, test/e2e integration tests
 web/                          Next.js 16 + Tailwind front end
 scripts/demo.sh               curl tour of every scenario
 ```
