@@ -1,104 +1,106 @@
-# Identity validation service
+# Servicio de validación de identidad
 
-Technical test for AUCO (Full Stack, Node.js). A Node.js service that validates a person, enriches the record with public country data, stores it in **MongoDB** and writes an append-only audit trail to **DynamoDB Local**.
+**Español** · [English](README.en.md)
 
-On top of the required endpoints it grows into a small "digital notary", inspired by the path AUCO itself followed: **validate → assess risk → generate a document → sign → audit**. Everything beyond the exercise is optional, has its own tests, and does not change the required contract.
+Prueba técnica para AUCO (Full Stack, Node.js). Un servicio en Node.js que valida a una persona, enriquece el registro con datos públicos de su país, lo guarda en **MongoDB** y escribe una auditoría de solo inserción en **DynamoDB Local**.
 
-| Required by the exercise | Where |
+Sobre los endpoints obligatorios crece hasta una pequeña «notaría digital», inspirada en el camino que siguió AUCO: **validar → evaluar el riesgo → generar un documento → firmar → auditar**. Todo lo que va más allá del enunciado es opcional, tiene sus propias pruebas y no cambia el contrato pedido.
+
+| Lo que pide el enunciado | Dónde |
 |---|---|
-| `POST /validations`: name + document → public API → MongoDB → id | [`validation-service.ts`](api/src/application/validation-service.ts) |
-| `GET /validations/:id` | same |
-| Audit event in DynamoDB Local keyed by document and date | [`dynamo-audit-repository.ts`](api/src/infrastructure/persistence/dynamo-audit-repository.ts) |
-| Input validation | Zod schemas, [`schemas.ts`](api/src/presentation/http/schemas.ts) |
-| External API error handling | [`world-bank-countries-client.ts`](api/src/infrastructure/countries/world-bank-countries-client.ts) |
-| At least 3 automated tests | 66 unit/HTTP tests + 5 integration tests against real MongoDB and DynamoDB |
-| README | this file |
+| `POST /validations`: nombre + documento → API pública → MongoDB → id | [`validation-service.ts`](api/src/application/validation-service.ts) |
+| `GET /validations/:id` | igual |
+| Evento de auditoría en DynamoDB Local con llave por documento y fecha | [`dynamo-audit-repository.ts`](api/src/infrastructure/persistence/dynamo-audit-repository.ts) |
+| Validación de entradas | Esquemas Zod, [`schemas.ts`](api/src/presentation/http/schemas.ts) |
+| Manejo de errores de la API externa | [`world-bank-countries-client.ts`](api/src/infrastructure/countries/world-bank-countries-client.ts) |
+| Al menos 3 pruebas automatizadas | 66 pruebas unitarias y HTTP + 5 de integración contra MongoDB y DynamoDB reales |
+| README | este archivo |
 
-| Extra | Where |
+| Extra | Dónde |
 |---|---|
-| Safe retries with the `Idempotency-Key` header | [`idempotency-service.ts`](api/src/application/idempotency-service.ts) |
-| Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
-| Promissory note with tamper-evident signature | [`document-service.ts`](api/src/application/document-service.ts) |
-| Audit timeline endpoint | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
-| Mobile-first Next.js front end for the whole flow, in English and Spanish, light and dark | [`web/`](web) |
-| OpenAPI docs, CI, Lambda entry point, demo script | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
+| Reintentos seguros con el header `Idempotency-Key` | [`idempotency-service.ts`](api/src/application/idempotency-service.ts) |
+| Motor de riesgo (APPROVED / REVIEW / BLOCKED) sobre la auditoría | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
+| Pagaré con firma que detecta manipulaciones | [`document-service.ts`](api/src/application/document-service.ts) |
+| Endpoint con la línea de tiempo de auditoría | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
+| Front en Next.js *mobile first* para todo el flujo, en español e inglés, modo claro y oscuro | [`web/`](web) |
+| Documentación OpenAPI, CI, handler para Lambda, script de demo | `/docs`, [`.github/workflows`](.github/workflows/ci.yml), [`lambda.ts`](api/src/lambda.ts), [`scripts/demo.sh`](scripts/demo.sh) |
 
-## Quick start
+## Inicio rápido
 
-Requirements: Docker with Compose. Internet access (the service calls the World Bank API).
+Requisitos: Docker con Compose y acceso a internet (el servicio consulta la API del Banco Mundial).
 
 ```bash
 docker compose up --build
 ```
 
-| What | URL |
+| Qué | URL |
 |---|---|
-| Web app | http://localhost:3001 |
+| App web | http://localhost:3001 |
 | API | http://localhost:3000 |
 | OpenAPI / Swagger UI | http://localhost:3000/docs |
-| Health (checks MongoDB and the DynamoDB table) | http://localhost:3000/health |
+| Health (revisa MongoDB y la tabla de DynamoDB) | http://localhost:3000/health |
 
-A port is taken? Every host port is configurable:
+¿Algún puerto ocupado? Todos los puertos del host se pueden cambiar:
 
 ```bash
 API_PORT=3100 WEB_PORT=3101 MONGO_PORT=27019 DYNAMO_PORT=8002 docker compose up --build
 ```
 
-Then take the tour (every scenario, including the error cases):
+Después, el recorrido completo (todos los escenarios, incluidos los errores):
 
 ```bash
-scripts/demo.sh                          # or: scripts/demo.sh http://localhost:3100
+scripts/demo.sh                          # o: scripts/demo.sh http://localhost:3100
 ```
 
-## Architecture
+## Arquitectura
 
 ```mermaid
 flowchart LR
-  WEB["Next.js web app"] -->|HTTP| API["Fastify API<br/>(Node 22, TypeScript)"]
+  WEB["App web Next.js"] -->|HTTP| API["API Fastify<br/>(Node 22, TypeScript)"]
   CURL["curl / Swagger UI"] -->|HTTP| API
-  API -->|"GET /v2/country/{iso2}<br/>3 s timeout, 1 retry"| WB["World Bank<br/>Countries API"]
-  API -->|"validations, documents"| MONGO[("MongoDB")]
-  API -->|"append-only events<br/>PK + SK + phone GSI"| DDB[("DynamoDB Local<br/>audit_events")]
-  DDB -->|"history of the document<br/>and of the phone"| RISK["Risk engine<br/>(pure function)"]
+  API -->|"GET /v2/country/{iso2}<br/>timeout 3 s, 1 reintento"| WB["API de países<br/>del Banco Mundial"]
+  API -->|"validaciones, documentos"| MONGO[("MongoDB")]
+  API -->|"eventos de solo inserción<br/>PK + SK + GSI por teléfono"| DDB[("DynamoDB Local<br/>audit_events")]
+  DDB -->|"historial del documento<br/>y del teléfono"| RISK["Motor de riesgo<br/>(función pura)"]
   RISK --> API
 ```
 
-### Layers
+### Capas
 
-The API follows a layered architecture (ports and adapters). Dependencies only point inwards, and **ESLint enforces it** (`no-restricted-imports` per layer in [`eslint.config.js`](api/eslint.config.js)): a forbidden import fails the lint and the CI.
+La API sigue una arquitectura por capas (puertos y adaptadores). Las dependencias solo apuntan hacia adentro y **ESLint lo hace cumplir** (`no-restricted-imports` por capa en [`eslint.config.js`](api/eslint.config.js)): un import prohibido rompe el lint y el CI.
 
 ```mermaid
 flowchart TB
-  P["presentation/http<br/>Fastify routes, Zod schemas, error → HTTP status"] --> A
-  A["application<br/>use cases (services), ports (interfaces), errors"] --> D
-  D["domain<br/>models, risk engine, promissory note, key helpers<br/>pure TypeScript, no I/O"]
-  I["infrastructure<br/>MongoDB and DynamoDB repositories, World Bank client"] -->|implements ports| A
+  P["presentation/http<br/>rutas Fastify, esquemas Zod, error → código HTTP"] --> A
+  A["application<br/>casos de uso (servicios), puertos (interfaces), errores"] --> D
+  D["domain<br/>modelos, motor de riesgo, pagaré, llaves de auditoría<br/>TypeScript puro, sin E/S"]
+  I["infrastructure<br/>repositorios de MongoDB y DynamoDB, cliente del Banco Mundial"] -->|implementa los puertos| A
   I --> D
-  C["container.ts (composition root)<br/>server.ts · lambda.ts"] -.->|wires| P & A & I
+  C["container.ts (raíz de composición)<br/>server.ts · lambda.ts"] -.->|conecta| P & A & I
 ```
 
-| Layer | Knows | Must not import |
+| Capa | Conoce | No puede importar |
 |---|---|---|
-| `domain/` | nothing but itself | any other layer, Fastify, MongoDB, AWS SDK, Zod |
-| `application/` | domain | infrastructure, presentation, any framework or database |
+| `domain/` | solo a sí misma | ninguna otra capa, Fastify, MongoDB, AWS SDK, Zod |
+| `application/` | domain | infrastructure, presentation, ningún framework ni base de datos |
 | `presentation/http/` | application, domain | infrastructure, MongoDB, AWS SDK |
-| `infrastructure/` | application ports and errors, domain | presentation, Fastify |
+| `infrastructure/` | puertos y errores de application, domain | presentation, Fastify |
 
-- **Application errors carry a code, not an HTTP status.** Only [`error-handler.ts`](api/src/presentation/http/error-handler.ts) maps them to 404, 409, 422, 502, 503 or 504.
-- **Ports** ([`ports.ts`](api/src/application/ports.ts)) are what the use cases need: repositories, the countries client and a logger. Infrastructure implements them; tests implement them in memory.
-- **Composition root** ([`container.ts`](api/src/container.ts)) is the only module that knows every layer. That is why swapping REST Countries for the World Bank API touched one adapter, why the tests run the real app with in-memory fakes in under a second, and why [`lambda.ts`](api/src/lambda.ts) runs the same app behind API Gateway with `@fastify/aws-lambda` (not deployed in this exercise).
+- **Los errores de la aplicación llevan un código, no un estado HTTP.** Solo [`error-handler.ts`](api/src/presentation/http/error-handler.ts) los traduce a 404, 409, 422, 502, 503 o 504.
+- **Los puertos** ([`ports.ts`](api/src/application/ports.ts)) son lo que necesitan los casos de uso: repositorios, el cliente de países, el almacén de idempotencia y un logger. La infraestructura los implementa y las pruebas los implementan en memoria.
+- **La raíz de composición** ([`container.ts`](api/src/container.ts)) es el único módulo que conoce todas las capas. Por eso cambiar REST Countries por el Banco Mundial tocó un solo adaptador, las pruebas corren la app real con dobles en memoria en menos de un segundo, y [`lambda.ts`](api/src/lambda.ts) corre la misma app detrás de API Gateway con `@fastify/aws-lambda` (no se despliega en este ejercicio).
 
 ## API
 
-| Method | Path | What it does |
+| Método | Ruta | Qué hace |
 |---|---|---|
-| `POST` | `/validations` | Validate, enrich, assess risk, store, audit. `201 {id, verdict, reasons}` |
-| `GET` | `/validations/:id` | The stored record |
-| `GET` | `/audit/:countryCode/:documentNumber` | Every audit event of a document, oldest first |
-| `POST` | `/validations/:id/promissory-notes` | Generate a demo promissory note (APPROVED only) |
-| `POST` | `/documents/:id/sign` | Sign it (time, IP, user agent, hash check) |
-| `GET` | `/documents/:id` | The document, its hash and signature |
-| `GET` | `/health` | MongoDB ping and DynamoDB table check |
+| `POST` | `/validations` | Valida, enriquece, evalúa el riesgo, guarda y audita. `201 {id, verdict, reasons}` |
+| `GET` | `/validations/:id` | El registro guardado |
+| `GET` | `/audit/:countryCode/:documentNumber` | Todos los eventos de auditoría de un documento, del más antiguo al más reciente |
+| `POST` | `/validations/:id/promissory-notes` | Genera un pagaré de demostración (solo si es APPROVED) |
+| `POST` | `/documents/:id/sign` | Lo firma (hora, IP, user agent y verificación del hash) |
+| `GET` | `/documents/:id` | El documento, su hash y su firma |
+| `GET` | `/health` | Ping a MongoDB y revisión de la tabla de DynamoDB |
 
 ### `POST /validations`
 
@@ -109,35 +111,35 @@ curl -X POST localhost:3000/validations \
 # 201 {"id":"6b00d6a86152ee9615a08a52","verdict":"APPROVED","reasons":[]}
 ```
 
-| Field | Required | Rules |
+| Campo | Obligatorio | Reglas |
 |---|---|---|
-| `name` | yes | 2–100 characters, trimmed |
-| `documentNumber` | yes | 5–20 letters or digits; `.`, `-` and spaces are removed (`1.020.304.050` → `1020304050`) |
-| `countryCode` | no, default `CO` | ISO 3166-1 alpha-2; used to enrich the record |
-| `phone` | no | E.164, e.g. `+573001234567`; feeds the shared-phone signal |
+| `name` | sí | 2 a 100 caracteres, sin espacios sobrantes |
+| `documentNumber` | sí | 5 a 20 letras o dígitos; se quitan `.`, `-` y espacios (`1.020.304.050` → `1020304050`) |
+| `countryCode` | no, por defecto `CO` | ISO 3166-1 alfa-2; se usa para enriquecer el registro |
+| `phone` | no | E.164, p. ej. `+573001234567`; alimenta la señal de teléfono compartido |
 
-The exercise asks for *name and document*, so those are the only required fields: `curl` with exactly those two works. Country and phone are optional extras.
+El enunciado pide *nombre y documento*, así que esos son los únicos campos obligatorios: un `curl` con solo esos dos funciona. El país y el teléfono son extras opcionales.
 
-#### Safe retries: `Idempotency-Key`
+#### Reintentos seguros: `Idempotency-Key`
 
-A network retry or a double click must not create two validations (nor two audit events). Send an `Idempotency-Key` header, any client-generated unique string such as a UUID, following the IETF draft *The Idempotency-Key HTTP Header Field*:
+Un reintento por la red o un doble clic no debe crear dos validaciones (ni dos eventos de auditoría). Basta con enviar el header `Idempotency-Key`, cualquier cadena única generada por el cliente (por ejemplo, un UUID), según el borrador de la IETF *The Idempotency-Key HTTP Header Field*:
 
 ```bash
 KEY=$(uuidgen)
 curl -X POST localhost:3000/validations -H "Idempotency-Key: $KEY" \
   -H 'content-type: application/json' -d '{"name": "Ana Gómez", "documentNumber": "1020304050"}'
-# Same request again: same id, header "Idempotent-Replayed: true", nothing new is written
+# La misma petición otra vez: mismo id, header "Idempotent-Replayed: true", no se escribe nada nuevo
 ```
 
-| Situation | Response |
+| Situación | Respuesta |
 |---|---|
-| Same key, same body (after normalization: `1.020.304.050` = `1020304050`) | The first response again, `Idempotent-Replayed: true` |
-| Same key, different body | `422 IDEMPOTENCY_KEY_REUSED` |
-| Same key while the first request is still running (double click) | `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` |
-| The operation failed (e.g. 502) | The key is released, so the client can retry with it |
-| No header | Normal behaviour: every request creates a validation |
+| Misma llave, mismo cuerpo (después de normalizar: `1.020.304.050` = `1020304050`) | La primera respuesta otra vez, con `Idempotent-Replayed: true` |
+| Misma llave, otro cuerpo | `422 IDEMPOTENCY_KEY_REUSED` |
+| Misma llave mientras la primera petición sigue en curso (doble clic) | `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` |
+| La operación falló (p. ej. 502) | Se libera la llave para que el cliente pueda reintentar con ella |
+| Sin el header | Comportamiento normal: cada petición crea una validación |
 
-Keys live in MongoDB: the claim is an atomic `insertOne` on a unique `_id` (of two simultaneous requests exactly one wins), a TTL index removes keys after 24 hours, and a claim abandoned for 30 s (a crashed process) can be taken over. The web app sends a new key per attempt and reuses it when the user retries the same data.
+Las llaves viven en MongoDB: se reclaman con un `insertOne` atómico sobre un `_id` único (de dos peticiones simultáneas gana exactamente una), un índice TTL las borra a las 24 horas y un reclamo abandonado durante 30 s (un proceso que se cayó) se puede retomar. La app web envía una llave nueva en cada intento y la reutiliza cuando el usuario reintenta los mismos datos.
 
 ### `GET /validations/:id`
 
@@ -160,58 +162,60 @@ Keys live in MongoDB: the claim is an atomic `insertOne` on a unique `_id` (of t
 }
 ```
 
-### Errors
+Los datos del país vienen en inglés porque así los devuelve el Banco Mundial.
 
-Every error has the same shape: `{"error": {"code": "...", "message": "...", "details": [...]}}`, and every response carries an `x-request-id` header that also appears in the logs.
+### Errores
 
-| Status | Code | When |
+Todos los errores tienen la misma forma, `{"error": {"code": "...", "message": "...", "details": [...]}}`, y cada respuesta lleva un header `x-request-id` que también aparece en los logs. Los mensajes de la API van en inglés porque son parte de su contrato.
+
+| Estado | Código | Cuándo |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid body or id, with per-field `details` |
-| 404 | `NOT_FOUND` | No validation or document with that id |
-| 409 | `VALIDATION_NOT_APPROVED`, `ALREADY_SIGNED`, `DOCUMENT_TAMPERED` | Document rules |
-| 409 | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | Same `Idempotency-Key` still being processed |
-| 422 | `COUNTRY_NOT_FOUND` | The countries API does not recognize the code |
-| 422 | `IDEMPOTENCY_KEY_REUSED` | Same `Idempotency-Key` with a different body |
-| 502 | `UPSTREAM_UNAVAILABLE` | Countries API failed (after one retry) |
-| 503 | `AUDIT_UNAVAILABLE` | DynamoDB failed; the MongoDB write was rolled back |
-| 504 | `UPSTREAM_TIMEOUT` | Countries API took longer than 3 s (after one retry) |
+| 400 | `VALIDATION_ERROR` | Cuerpo o id inválido, con `details` por campo |
+| 404 | `NOT_FOUND` | No existe una validación o un documento con ese id |
+| 409 | `VALIDATION_NOT_APPROVED`, `ALREADY_SIGNED`, `DOCUMENT_TAMPERED` | Reglas de los documentos |
+| 409 | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | La misma `Idempotency-Key` aún se está procesando |
+| 422 | `COUNTRY_NOT_FOUND` | La API de países no reconoce el código |
+| 422 | `IDEMPOTENCY_KEY_REUSED` | La misma `Idempotency-Key` con otro cuerpo |
+| 502 | `UPSTREAM_UNAVAILABLE` | Falló la API de países (después de un reintento) |
+| 503 | `AUDIT_UNAVAILABLE` | Falló DynamoDB; se deshizo la escritura en MongoDB |
+| 504 | `UPSTREAM_TIMEOUT` | La API de países tardó más de 3 s (después de un reintento) |
 
-## How a validation is created
+## Cómo se crea una validación
 
 ```mermaid
 sequenceDiagram
-  participant C as Client
+  participant C as Cliente
   participant A as API
-  participant W as World Bank API
+  participant W as API del Banco Mundial
   participant D as DynamoDB
   participant M as MongoDB
   C->>A: POST /validations {name, documentNumber}
-  A->>A: Zod validation (invalid but identifies a document → VALIDATION_FAILED event, 400)
-  A->>W: GET /country/CO (3 s timeout, 1 retry on 5xx/network/timeout)
-  W-->>A: country (unknown code → VALIDATION_FAILED + 422, outage → 502 or 504)
-  A->>D: Query PK = CO#35;1020304050 (consistent read) + Query phone-index
-  A->>A: assessRisk(history) → APPROVED / REVIEW / BLOCKED
-  A->>M: insertOne(validation)
-  A->>D: PutItem VALIDATION_CREATED (conditional, append-only)
-  alt DynamoDB fails
-    A->>M: deleteOne(validation) (compensation)
+  A->>A: Validación Zod (inválida pero identifica un documento → evento VALIDATION_FAILED, 400)
+  A->>W: GET /country/CO (timeout 3 s, 1 reintento ante 5xx, red o timeout)
+  W-->>A: país (código desconocido → VALIDATION_FAILED + 422, caída → 502 o 504)
+  A->>D: Query PK = CO#35;1020304050 (lectura consistente) + Query phone-index
+  A->>A: assessRisk(historial) → APPROVED / REVIEW / BLOCKED
+  A->>M: insertOne(validación)
+  A->>D: PutItem VALIDATION_CREATED (condicional, solo inserción)
+  alt Falla DynamoDB
+    A->>M: deleteOne(validación) (compensación)
     A-->>C: 503 AUDIT_UNAVAILABLE
   else
     A-->>C: 201 {id, verdict, reasons}
   end
 ```
 
-**No validation without its audit event.** The id is generated before writing, the record goes to MongoDB, then the event to DynamoDB. If DynamoDB fails, the MongoDB insert is deleted and the API answers 503. A production system would use an outbox or DynamoDB Streams instead of a compensating delete (see *What I would improve*).
+**No existe una validación sin su evento de auditoría.** El id se genera antes de escribir, el registro va a MongoDB y después el evento a DynamoDB. Si DynamoDB falla, se borra lo insertado en MongoDB y la API responde 503. En producción se usaría un *outbox* o DynamoDB Streams en lugar de un borrado compensatorio (ver *Qué mejoraría*).
 
-## DynamoDB key design
+## Diseño de llaves en DynamoDB
 
 ```mermaid
 erDiagram
   AUDIT_EVENTS {
-    string documentKey PK "partition key, e.g. CO#1020304050"
-    string sk "sort key, e.g. 2026-11-20T23:24:24.593Z#eventId"
+    string documentKey PK "llave de partición, p. ej. CO#1020304050"
+    string sk "llave de ordenamiento, p. ej. 2026-11-20T23:24:24.593Z#eventId"
     string eventType "VALIDATION_CREATED, VALIDATION_FAILED, DOCUMENT_GENERATED, DOCUMENT_SIGNED"
-    string phone "GSI phone-index PK (sparse)"
+    string phone "PK del GSI phone-index (disperso)"
     string validationId
     string documentId
     string verdict
@@ -221,34 +225,34 @@ erDiagram
   }
 ```
 
-| Access pattern | How |
+| Patrón de acceso | Cómo |
 |---|---|
-| Full history of a person's document, in order | `Query documentKey = :pk` (one partition, sorted by `sk`) |
-| Events in a time range | `Query documentKey = :pk AND sk BETWEEN :from AND :to` |
-| Every document that used a phone | `Query` on GSI `phone-index` |
-| Never overwrite an event | `PutItem` with `attribute_not_exists(documentKey) AND attribute_not_exists(sk)` |
+| Todo el historial del documento de una persona, en orden | `Query documentKey = :pk` (una partición, ordenada por `sk`) |
+| Eventos en un rango de tiempo | `Query documentKey = :pk AND sk BETWEEN :from AND :to` |
+| Todos los documentos que usaron un teléfono | `Query` sobre el GSI `phone-index` |
+| Nunca sobrescribir un evento | `PutItem` con `attribute_not_exists(documentKey) AND attribute_not_exists(sk)` |
 
-- **PK `documentKey = "<country>#<document>"`**: the exercise asks for a key "by document". The country is part of it because the same number can belong to two different people in two countries (a Colombian *cédula* and a Peruvian *DNI*). All the events of one person live in one partition, which is exactly what the risk engine and the timeline read.
-- **SK `sk = "<ISO-8601 timestamp>#<eventId>"`**: ISO timestamps sort lexicographically, so the partition comes back in chronological order and supports range queries. The `eventId` suffix keeps two events in the same millisecond from colliding. Events inside one millisecond are treated as concurrent: their relative order is not meaningful.
-- **GSI `phone-index`** (PK `phone`, SK `sk`) serves the "same phone, several people" signal. It is sparse: only events with a phone are indexed.
-- **Consistency**: the document history uses `ConsistentRead`, so the engine always sees the previous event. GSIs only support eventually consistent reads, which is acceptable for a REVIEW signal.
-- DynamoDB Local persists to a Docker volume: an audit trail must survive restarts.
+- **PK `documentKey = "<país>#<documento>"`**: el enunciado pide una llave «por documento». El país va en la llave porque un mismo número puede ser de dos personas distintas en dos países (una *cédula* colombiana y un *DNI* peruano). Todos los eventos de una persona quedan en una sola partición, que es justo lo que leen el motor de riesgo y la línea de tiempo.
+- **SK `sk = "<fecha ISO-8601>#<eventId>"`**: las fechas ISO se ordenan como texto, así que la partición sale en orden cronológico y admite consultas por rango. El sufijo `eventId` evita que dos eventos del mismo milisegundo choquen. Los eventos de un mismo milisegundo se tratan como concurrentes: su orden relativo no tiene significado.
+- **GSI `phone-index`** (PK `phone`, SK `sk`): sirve la señal de «mismo teléfono en varias personas». Es disperso: solo se indexan los eventos que tienen teléfono.
+- **Consistencia**: el historial del documento usa `ConsistentRead`, así que el motor siempre ve el evento anterior. Los GSI solo admiten lecturas eventualmente consistentes, algo aceptable para una señal que solo pide revisión.
+- DynamoDB Local persiste en un volumen de Docker: una auditoría debe sobrevivir a los reinicios.
 
-## Risk engine
+## Motor de riesgo
 
-A pure function in the domain layer ([`risk-engine.ts`](api/src/domain/risk-engine.ts)): it receives the history already read from DynamoDB and returns a verdict with human-readable reasons. The rules are inspired by the fraud signals AUCO published in September 2026.
+Una función pura de la capa de dominio ([`risk-engine.ts`](api/src/domain/risk-engine.ts)): recibe el historial ya leído de DynamoDB y devuelve un veredicto con motivos legibles. Las reglas se inspiran en las señales de fraude que AUCO publicó en septiembre de 2026.
 
-| Signal | Rule | Verdict |
+| Señal | Regla | Veredicto |
 |---|---|---|
-| `DOCUMENT_NAME_MISMATCH` | The document was validated before under another name (case and accents ignored) | `REVIEW` |
-| `SHARED_PHONE` | The phone is linked to other documents | `REVIEW`, `BLOCKED` at 3 |
-| `REPEATED_FAILURES` | 3+ failed attempts for the document in the last 24 h | `BLOCKED` |
+| `DOCUMENT_NAME_MISMATCH` | El documento ya se validó con otro nombre (sin importar mayúsculas ni tildes) | `REVIEW` |
+| `SHARED_PHONE` | El teléfono está ligado a otros documentos | `REVIEW`; `BLOCKED` desde 3 |
+| `REPEATED_FAILURES` | 3 o más intentos fallidos del documento en las últimas 24 h | `BLOCKED` |
 
-The most severe verdict wins, and every reason is returned. A *failed attempt* is a request that identifies a document (valid number and country) but fails validation, or uses a country that does not exist. Upstream outages are not the person's fault and are not counted. Thresholds are arbitrary and live in one constant.
+Gana el veredicto más grave y se devuelven todos los motivos. Un *intento fallido* es una petición que identifica un documento (número y país válidos) pero no pasa la validación, o que usa un país que no existe. Las caídas de la API externa no son culpa de la persona y no cuentan. Los umbrales son arbitrarios y están en una sola constante.
 
-`REVIEW` and `BLOCKED` validations are still stored (traceability), but they cannot generate documents.
+Las validaciones en `REVIEW` y `BLOCKED` se guardan igual (por trazabilidad), pero no pueden generar documentos.
 
-## Documents and signature
+## Documentos y firma
 
 ```bash
 curl -X POST localhost:3000/validations/<validationId>/promissory-notes \
@@ -257,88 +261,88 @@ curl -X POST localhost:3000/validations/<validationId>/promissory-notes \
 curl -X POST localhost:3000/documents/<documentId>/sign
 ```
 
-- The note is rendered with the validated identity. Currency defaults to COP, and the city to the capital returned by the countries API. It is in Spanish because it is a Colombian-style *pagaré*, and it is marked as a demo without legal value.
-- Its SHA-256 is written to the **immutable audit trail** when it is generated. Signing recomputes the hash and compares it with the audit copy, not with the one stored next to the document. A document edited in MongoDB afterwards, even with its stored hash updated, is rejected with `409 DOCUMENT_TAMPERED`.
-- `PENDING_SIGNATURE → SIGNED` is a conditional `updateOne`, so concurrent clicks cannot sign twice (`409 ALREADY_SIGNED`).
-- The signature stores time, IP, user agent and the time since the validation (the web app shows it as a stopwatch).
+- El pagaré se llena con la identidad validada. La moneda por defecto es COP y la ciudad, la capital que devuelve la API de países. Está en español porque es un *pagaré* colombiano, y lleva la marca de documento de demostración sin validez legal.
+- Su SHA-256 se escribe en la **auditoría inmutable** cuando se genera. Al firmar se recalcula el hash y se compara con la copia de la auditoría, no con la que está guardada junto al documento. Un documento editado después en MongoDB, aunque también se actualice su hash guardado, se rechaza con `409 DOCUMENT_TAMPERED`.
+- El paso `PENDING_SIGNATURE → SIGNED` es un `updateOne` condicional, así que dos clics simultáneos no pueden firmar dos veces (`409 ALREADY_SIGNED`).
+- La firma guarda la hora, la IP, el user agent y el tiempo transcurrido desde la validación (la app web lo muestra como un cronómetro).
 
-## Web app
+## App web
 
-[`web/`](web) is a Next.js 16 + Tailwind 4 onboarding-style flow, one question per screen: country → identity → risk verdict → promissory note and signature → audit trail.
+[`web/`](web) es un flujo tipo *onboarding* en Next.js 16 + Tailwind 4, con una pregunta por pantalla: país → identidad → veredicto de riesgo → pagaré y firma → auditoría.
 
-- **Mobile first:** base styles target phones (compact progress bar, sticky actions, 16 px inputs); from `lg` a side panel shows the steps.
-- **English and Spanish:** typed dictionaries in [`lib/i18n`](web/lib/i18n). `es.ts` is typed as the shape of `en.ts`, so a missing or extra key fails the build. The first language comes from the browser and the choice is saved. API error messages stay in English: they are part of the API contract.
-- **Light and dark:** colours are CSS variables switched by `data-theme` on `<html>`; the preference (light, dark or system) is saved, and a tiny inline script applies it before the first paint so there is no white flash.
+- **Mobile first:** los estilos base son para el celular (barra de progreso compacta, acciones fijas abajo, inputs de 16 px); desde `lg` aparece un panel lateral con los pasos.
+- **Español e inglés:** diccionarios tipados en [`lib/i18n`](web/lib/i18n). `es.ts` tiene el tipo de `en.ts`, así que una clave faltante o sobrante rompe el build. El idioma inicial sale del navegador y la elección se guarda.
+- **Claro y oscuro:** los colores son variables CSS que cambian con `data-theme` en `<html>`; la preferencia (claro, oscuro o la del sistema) se guarda, y un script mínimo la aplica antes de pintar, así que no hay destello blanco.
 
-## What is real and what is simulated
+## Qué es real y qué es simulado
 
-| Real | Simulated or out of scope |
+| Real | Simulado o fuera de alcance |
 |---|---|
-| Input validation, World Bank enrichment, MongoDB, DynamoDB audit trail, risk rules, SHA-256 hash, signature record | ID photo, liveness check, national registry and watch lists, WhatsApp/email delivery, cryptographic (PKI) signature, authentication |
+| Validación de entradas, enriquecimiento con el Banco Mundial, MongoDB, auditoría en DynamoDB, reglas de riesgo, hash SHA-256, registro de la firma, idempotencia | Foto del documento, prueba de vida, Registraduría y listas restrictivas, envío por WhatsApp o correo, firma criptográfica (PKI), autenticación |
 
-## Tests
+## Pruebas
 
 ```bash
 cd api && npm ci
-npm test                 # 66 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
+npm test                 # 66 pruebas unitarias y HTTP, dobles en memoria, sin Docker (< 1 s)
 npm run lint && npm run typecheck
 
 docker compose up -d mongo dynamodb
-npm run test:e2e         # 5 integration tests against real MongoDB and DynamoDB Local
+npm run test:e2e         # 5 pruebas de integración contra MongoDB y DynamoDB Local reales
 ```
 
-- **Unit:** schemas, countries client (payload mapping, unknown code, aggregates, retry, timeout, cache), risk rules, promissory note.
-- **HTTP** (`app.inject`, the real Fastify app with fakes): every status code above, the MongoDB rollback when DynamoDB fails, failed-attempt auditing, the document flow, tamper detection, idempotent retries and double clicks.
-- **Integration:** chronological `Query` by partition key, the phone GSI, conditional writes that refuse to overwrite, only one winner among concurrent signatures, and only one winner among concurrent idempotency claims (plus the TTL index).
-- CI (GitHub Actions) runs lint, typecheck, all tests with MongoDB and DynamoDB service containers, and both builds.
+- **Unitarias:** esquemas, cliente de países (mapeo de la respuesta, código desconocido, agregados regionales, reintento, timeout, caché), reglas de riesgo, pagaré, idempotencia.
+- **HTTP** (`app.inject`, la app Fastify real con dobles): todos los códigos de estado de arriba, la reversión en MongoDB cuando falla DynamoDB, la auditoría de intentos fallidos, el flujo de documentos, la detección de manipulaciones, los reintentos idempotentes y el doble clic.
+- **Integración:** `Query` cronológica por llave de partición, el GSI por teléfono, escrituras condicionales que no sobrescriben, un solo ganador entre firmas simultáneas y entre reclamos de idempotencia simultáneos (más el índice TTL).
+- El CI (GitHub Actions) corre lint, tipos, todas las pruebas con MongoDB y DynamoDB como contenedores de servicio, y los dos builds.
 
-## Project layout
+## Estructura del proyecto
 
 ```
 api/src/
-  domain/                     models, risk engine, promissory note, audit key helpers (pure)
-  application/                use cases: validation, document and audit services; ports; errors
+  domain/                     modelos, motor de riesgo, pagaré, llaves de auditoría (puro)
+  application/                casos de uso: validación, documentos, auditoría, idempotencia; puertos; errores
   infrastructure/
-    countries/                World Bank client: timeout, retry, cache, error mapping
-    persistence/              MongoDB and DynamoDB repositories (implement the ports)
-  presentation/http/          Fastify app, routes, Zod schemas, error handler
-  container.ts                composition root
-  server.ts · lambda.ts       entry points (container / AWS Lambda)
-api/test/                     unit + HTTP tests, test/e2e integration tests
-web/                          Next.js 16 + Tailwind front end, mobile first
-scripts/demo.sh               curl tour of every scenario
+    countries/                cliente del Banco Mundial: timeout, reintento, caché, mapeo de errores
+    persistence/              repositorios de MongoDB y DynamoDB, almacén de idempotencia (implementan los puertos)
+  presentation/http/          app Fastify, rutas, esquemas Zod, manejador de errores
+  container.ts                raíz de composición
+  server.ts · lambda.ts       puntos de entrada (contenedor / AWS Lambda)
+api/test/                     pruebas unitarias y HTTP; test/e2e, pruebas de integración
+web/                          front en Next.js 16 + Tailwind, mobile first, español e inglés
+scripts/demo.sh               recorrido con curl por todos los escenarios
 ```
 
-## Decisions and trade-offs
+## Decisiones y compromisos
 
-- **World Bank API instead of REST Countries.** REST Countries was the first choice, but `v3.1` now answers with a deprecation notice and `v5` requires an API key, which would force every reviewer to sign up. The World Bank API is free, keyless and official. Its quirks are handled and tested: unknown codes return **HTTP 200** with an error message, and regional aggregates (e.g. `ZJ`) look like countries.
-- **One retry, only for transient failures** (network, 5xx, timeout), never for "country does not exist". With a 3 s timeout the worst case is about 6 s. Lookups are cached in memory for an hour, since country data barely changes.
-- **Fastify + Zod.** One schema validates the input, types the handler and generates the OpenAPI docs.
-- **Compensation instead of a transaction.** MongoDB and DynamoDB cannot share one. A compensating delete is simple and testable; the trade-off is a short window in which a crash could leave a record without its event.
-- **Failed attempts are audited, upstream outages are not.** Otherwise a World Bank outage would block legitimate people.
+- **API del Banco Mundial en lugar de REST Countries.** REST Countries fue la primera opción, pero la `v3.1` ahora responde con un aviso de deprecación y la `v5` exige una API key, lo que obligaría a cada evaluador a registrarse. La API del Banco Mundial es gratuita, oficial y no pide llave. Sus rarezas están manejadas y probadas: los códigos desconocidos responden **HTTP 200** con un mensaje de error, y los agregados regionales (p. ej. `ZJ`) parecen países.
+- **Un solo reintento y solo ante fallas transitorias** (red, 5xx, timeout), nunca ante «el país no existe». Con un timeout de 3 s, el peor caso ronda los 6 s. Las consultas se guardan en caché en memoria durante una hora, porque los datos de un país casi no cambian.
+- **Fastify + Zod.** Un mismo esquema valida la entrada, tipa el handler y genera la documentación OpenAPI.
+- **Compensación en lugar de transacción.** MongoDB y DynamoDB no pueden compartir una transacción. El borrado compensatorio es simple y se puede probar; el costo es una ventana corta en la que una caída podría dejar un registro sin su evento.
+- **Se auditan los intentos fallidos, no las caídas de la API externa.** Si no, una caída del Banco Mundial bloquearía a personas legítimas.
 
-## Known limitations
+## Limitaciones conocidas
 
-Found in a review pass and left on purpose, because they need authentication, which is out of scope:
+Las encontró una revisión del código y se dejaron a propósito, porque resolverlas exige autenticación, que está fuera del alcance:
 
-- **Failed attempts can be forged.** Anyone can send three invalid requests with someone else's document number and get that document `BLOCKED` for 24 hours. With per-company API keys, failures would be counted per caller.
-- **The audit timeline is public.** `GET /audit/...` returns names, phones and signing IPs for any document number. In production it would require authentication and an authorization check per company.
-- **The World Bank API omits a few real ISO codes** (e.g. `TW`, `AQ`), so they get `422 COUNTRY_NOT_FOUND` ("not recognized by the countries API").
+- **Los intentos fallidos se pueden falsificar.** Cualquiera puede enviar tres peticiones inválidas con el número de documento de otra persona y dejar ese documento `BLOCKED` durante 24 horas. Con API keys por empresa, los fallos se contarían por cliente.
+- **La línea de tiempo de auditoría es pública.** `GET /audit/...` devuelve nombres, teléfonos e IP de firma para cualquier número de documento. En producción exigiría autenticación y una verificación de permisos por empresa.
+- **La API del Banco Mundial omite algunos códigos ISO reales** (p. ej. `TW`, `AQ`), que reciben `422 COUNTRY_NOT_FOUND` («no reconocido por la API de países»).
 
-## What I would improve with more time
+## Qué mejoraría con más tiempo
 
-- **Outbox or DynamoDB Streams** instead of the compensating delete, to remove the crash window.
-- **Race on the risk check:** two simultaneous validations of the same document both read the history before either writes. A conditional write on a per-document counter would close it.
-- **Degraded mode:** store the validation with `enrichment: null` and retry in the background when the countries API is down, instead of rejecting it.
-- **Real deployment:** Lambda + API Gateway with IaC (SAM or CDK), structured logs and metrics per external call.
-- **Authentication and multi-tenancy** (per-company API keys), which also closes the limitations above, and a risk history shared between companies, in the spirit of AUCO's Identity Guardian.
-- **PKI signature** and a certified timestamp instead of a recorded hash.
-- **Configurable risk thresholds**, and a review workflow to move a `REVIEW` to `APPROVED`.
+- **Outbox o DynamoDB Streams** en lugar del borrado compensatorio, para cerrar la ventana de caída.
+- **Carrera en la evaluación de riesgo:** dos validaciones simultáneas del mismo documento leen el historial antes de que alguna escriba. Una escritura condicional sobre un contador por documento la cerraría.
+- **Modo degradado:** guardar la validación con `enrichment: null` y reintentar en segundo plano cuando la API de países esté caída, en vez de rechazarla.
+- **Despliegue real:** Lambda + API Gateway con infraestructura como código (SAM o CDK), logs estructurados y métricas por llamada externa.
+- **Autenticación y multi-tenancy** (API keys por empresa), lo que además resuelve las limitaciones de arriba, y un historial de riesgo compartido entre empresas, al estilo del Identity Guardian de AUCO.
+- **Firma PKI** y sello de tiempo certificado en lugar de un hash registrado.
+- **Umbrales de riesgo configurables** y un flujo de revisión para pasar un caso de `REVIEW` a `APPROVED`.
 
-## Running without Docker
+## Correr sin Docker
 
 ```bash
-docker compose up -d mongo dynamodb           # or your own MongoDB and DynamoDB Local
+docker compose up -d mongo dynamodb           # o tu propio MongoDB y DynamoDB Local
 cd api && cp .env.example .env && npm ci && node --env-file=.env --import tsx src/server.ts
 cd web && npm ci && npm run dev               # http://localhost:3001
 ```
