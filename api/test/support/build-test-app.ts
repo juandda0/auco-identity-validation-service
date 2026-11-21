@@ -1,11 +1,13 @@
 import { createAuditService } from '../../src/application/audit-service.js';
 import { createDocumentService } from '../../src/application/document-service.js';
+import { createIdempotencyService } from '../../src/application/idempotency-service.js';
 import { createValidationService } from '../../src/application/validation-service.js';
 import { buildApp } from '../../src/presentation/http/app.js';
 import {
   fakeCountries,
   inMemoryAudit,
   inMemoryDocuments,
+  inMemoryIdempotencyStore,
   inMemoryValidations,
   newTestId,
   silentLogger,
@@ -19,12 +21,14 @@ export async function buildTestApp(options: { countries?: ReturnType<typeof fake
   const audit = inMemoryAudit();
   const logger = silentLogger;
   const newId = newTestId;
+  const idempotencyStore = inMemoryIdempotencyStore();
   const app = await buildApp({
     validationService: createValidationService({ countries, validations, audit, logger, newId }),
     documentService: createDocumentService({ validations, documents, audit, logger, newId }),
     auditService: createAuditService({ audit }),
+    idempotencyService: createIdempotencyService({ store: idempotencyStore }),
     corsOrigin: '*',
     healthCheck: async () => ({ mongo: true, dynamo: true }),
   });
-  return { app, countries, validations, documents, audit };
+  return { app, countries, validations, documents, audit, idempotencyStore };
 }

@@ -3,6 +3,8 @@ import type {
   AuditRepository,
   CountriesClient,
   DocumentRepository,
+  IdempotencyBegin,
+  IdempotencyStore,
   ValidationRepository,
 } from '../../src/application/ports.js';
 import { documentKeyOf, sortKeyOf, type AuditEvent } from '../../src/domain/audit-event.js';
@@ -120,6 +122,40 @@ export function inMemoryDocuments(): DocumentRepository & { items: Map<string, D
     async revertSignature(id) {
       const document = items.get(id);
       if (document) items.set(id, { ...document, status: 'PENDING_SIGNATURE', signature: null });
+    },
+  };
+}
+
+/** Same semantics as the MongoDB store: atomic claim, mismatch, replay, stale takeover. */
+export function inMemoryIdempotencyStore(): IdempotencyStore & {
+  entries: Map<string, { requestHash: string; status: string; value?: unknown; createdAt: Date }>;
+} {
+  const entries = new Map<
+    string,
+    { requestHash: string; status: 'IN_PROGRESS' | 'COMPLETED'; value?: unknown; createdAt: Date }
+  >();
+  return {
+    entries,
+    async begin(id, requestHash, times): Promise<IdempotencyBegin> {
+      const existing = entries.get(id);
+      if (!existing) {
+        entries.set(id, { requestHash, status: 'IN_PROGRESS', createdAt: times.now });
+        return { state: 'new' };
+      }
+      if (existing.requestHash !== requestHash) return { state: 'mismatch' };
+      if (existing.status === 'COMPLETED') return { state: 'completed', value: existing.value };
+      if (existing.createdAt < times.staleBefore) {
+        existing.createdAt = times.now;
+        return { state: 'new' };
+      }
+      return { state: 'in_progress' };
+    },
+    async complete(id, value) {
+      const entry = entries.get(id);
+      if (entry) Object.assign(entry, { status: 'COMPLETED', value: structuredClone(value) });
+    },
+    async release(id) {
+      if (entries.get(id)?.status === 'IN_PROGRESS') entries.delete(id);
     },
   };
 }

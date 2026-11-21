@@ -59,10 +59,9 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: init?.body ? { 'content-type': 'application/json' } : undefined,
-    });
+    const headers = new Headers(init?.headers);
+    if (init?.body) headers.set('content-type', 'application/json');
+    response = await fetch(`${API_URL}${path}`, { ...init, headers });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', `Cannot reach the API at ${API_URL}. Is it running?`);
   }
@@ -81,15 +80,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  createValidation: (input: {
-    name: string;
-    documentNumber: string;
-    countryCode?: string;
-    phone?: string;
-  }) =>
+  /** `idempotencyKey` makes retries safe: the same key never creates a second validation. */
+  createValidation: (
+    input: { name: string; documentNumber: string; countryCode?: string; phone?: string },
+    idempotencyKey: string,
+  ) =>
     request<{ id: string; verdict: Verdict; reasons: RiskReason[] }>('/validations', {
       method: 'POST',
       body: JSON.stringify(input),
+      headers: { 'idempotency-key': idempotencyKey },
     }),
   getValidation: (id: string) => request<Validation>(`/validations/${id}`),
   createPromissoryNote: (

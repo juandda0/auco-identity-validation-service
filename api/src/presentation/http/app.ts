@@ -12,6 +12,7 @@ import {
 import { z } from 'zod';
 import type { AuditService } from '../../application/audit-service.js';
 import type { DocumentService } from '../../application/document-service.js';
+import type { IdempotencyService } from '../../application/idempotency-service.js';
 import type { ValidationService } from '../../application/validation-service.js';
 import { errorHandler } from './error-handler.js';
 import { auditRoutes } from './routes/audit-routes.js';
@@ -22,6 +23,7 @@ export interface AppDependencies {
   validationService: ValidationService;
   documentService: DocumentService;
   auditService: AuditService;
+  idempotencyService: IdempotencyService;
   /** Returns true when MongoDB and DynamoDB answer. */
   healthCheck: () => Promise<{ mongo: boolean; dynamo: boolean }>;
   corsOrigin: string;
@@ -87,7 +89,10 @@ export async function buildApp(deps: AppDependencies, logger?: FastifyBaseLogger
     },
   );
 
-  await app.register(validationRoutes, { service: deps.validationService });
+  await app.register(validationRoutes, {
+    service: deps.validationService,
+    idempotency: deps.idempotencyService,
+  });
   await app.register(auditRoutes, { service: deps.auditService });
   await app.register(documentRoutes, { service: deps.documentService });
 

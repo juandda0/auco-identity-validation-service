@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { Actions, Button, ErrorBanner, Field, StepHeader } from './ui';
@@ -35,6 +35,13 @@ export function PersonStep({
   const { t } = useI18n();
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+
+  // One Idempotency-Key per attempt: a retry of the same data after an error reuses it
+  // (so it can never create two validations); new data or a success gets a new one.
+  const idempotencyKey = useRef(crypto.randomUUID());
+  useEffect(() => {
+    idempotencyKey.current = crypto.randomUUID();
+  }, [countryCode, form.name, form.documentNumber, form.phone]);
   const set = (key: keyof PersonForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...form, [key]: e.target.value });
 
@@ -43,12 +50,16 @@ export function PersonStep({
     setBusy(true);
     setError(null);
     try {
-      const { id } = await api.createValidation({
-        name: form.name,
-        documentNumber: form.documentNumber,
-        countryCode,
-        ...(form.phone.trim() && { phone: form.phone }),
-      });
+      const { id } = await api.createValidation(
+        {
+          name: form.name,
+          documentNumber: form.documentNumber,
+          countryCode,
+          ...(form.phone.trim() && { phone: form.phone }),
+        },
+        idempotencyKey.current,
+      );
+      idempotencyKey.current = crypto.randomUUID();
       const record = await api.getValidation(id);
       onValidated({
         validationId: id,

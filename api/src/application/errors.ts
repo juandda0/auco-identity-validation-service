@@ -56,3 +56,23 @@ export class AuditUnavailableError extends AppError {
     super('AUDIT_UNAVAILABLE', message, options);
   }
 }
+
+/** The Idempotency-Key was already used with a different request body. */
+export class IdempotencyKeyReusedError extends AppError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_KEY_REUSED',
+      'This Idempotency-Key was already used with a different request body',
+    );
+  }
+}
+
+/** Another request with the same Idempotency-Key is still being processed (e.g. a double click). */
+export class IdempotencyInProgressError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      'A request with this Idempotency-Key is still being processed; retry shortly',
+    );
+  }
+}

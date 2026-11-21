@@ -15,6 +15,10 @@ import {
 } from '../../src/infrastructure/persistence/dynamo-audit-repository.js';
 import { createMongoDocumentRepository } from '../../src/infrastructure/persistence/mongo-document-repository.js';
 import type { DocumentRecord } from '../../src/domain/document.js';
+import {
+  createMongoIdempotencyStore,
+  ensureIdempotencyIndexes,
+} from '../../src/infrastructure/persistence/mongo-idempotency-store.js';
 
 const dynamo = new DynamoDBClient({
   region: 'us-east-1',
@@ -145,5 +149,33 @@ describe('MongoDB document repository', () => {
 
     expect(results.filter(Boolean)).toHaveLength(1);
     expect((await documents.findById(id))?.status).toBe('SIGNED');
+  });
+});
+
+describe('MongoDB idempotency store', () => {
+  it('lets exactly one of several simultaneous claims win, then replays the stored value', async () => {
+    const db = mongo.db(dbName);
+    await ensureIdempotencyIndexes(db);
+    const store = createMongoIdempotencyStore(db);
+    const now = new Date();
+    const times = { now, expiresAt: new Date(now.getTime() + 60_000), staleBefore: new Date(0) };
+
+    const claims = await Promise.all(
+      Array.from({ length: 5 }, () => store.begin('POST /validations|k1', 'hash-a', times)),
+    );
+    expect(claims.filter((c) => c.state === 'new')).toHaveLength(1);
+    expect(claims.filter((c) => c.state === 'in_progress')).toHaveLength(4);
+
+    await store.complete('POST /validations|k1', { id: 'abc' });
+    await expect(store.begin('POST /validations|k1', 'hash-a', times)).resolves.toEqual({
+      state: 'completed',
+      value: { id: 'abc' },
+    });
+    await expect(store.begin('POST /validations|k1', 'hash-b', times)).resolves.toEqual({
+      state: 'mismatch',
+    });
+
+    const indexes = await db.collection('idempotency_keys').indexes();
+    expect(indexes.find((i) => i.name === 'expiresAt_1')).toMatchObject({ expireAfterSeconds: 0 });
   });
 });

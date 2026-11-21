@@ -67,6 +67,17 @@ export const validationResponseSchema = z.object({
   createdAt: z.string(),
 });
 
+/**
+ * Optional Idempotency-Key header (IETF draft): any client-generated unique
+ * string, typically a UUID. Visible ASCII only, at most 255 characters.
+ */
+export const idempotencyHeadersSchema = z.object({
+  'idempotency-key': z
+    .string()
+    .regex(/^[\x21-\x7E]{1,255}$/, 'must be 1 to 255 visible ASCII characters, e.g. a UUID')
+    .optional(),
+});
+
 export const createValidationResponseSchema = z.object({
   id: z.string(),
   ...riskSchema.shape,

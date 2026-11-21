@@ -8,6 +8,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 import type { FastifyBaseLogger } from 'fastify';
 import { createAuditService } from './application/audit-service.js';
 import { createDocumentService } from './application/document-service.js';
+import { createIdempotencyService } from './application/idempotency-service.js';
 import { createValidationService } from './application/validation-service.js';
 import type { Config } from './config.js';
 import { createWorldBankCountriesClient } from './infrastructure/countries/world-bank-countries-client.js';
@@ -16,6 +17,10 @@ import {
   ensureAuditTable,
 } from './infrastructure/persistence/dynamo-audit-repository.js';
 import { createMongoDocumentRepository } from './infrastructure/persistence/mongo-document-repository.js';
+import {
+  createMongoIdempotencyStore,
+  ensureIdempotencyIndexes,
+} from './infrastructure/persistence/mongo-idempotency-store.js';
 import {
   createMongoValidationRepository,
   ensureValidationIndexes,
@@ -39,6 +44,7 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
 
   await retry(() => ensureAuditTable(dynamo, config.DYNAMO_TABLE), logger, 'DynamoDB');
   await ensureValidationIndexes(db);
+  await ensureIdempotencyIndexes(db);
 
   const audit = createDynamoAuditRepository(dynamo, config.DYNAMO_TABLE);
   const validations = createMongoValidationRepository(db);
@@ -54,6 +60,7 @@ export async function createContainer(config: Config, logger: FastifyBaseLogger)
     validationService: createValidationService({ countries, validations, audit, logger, newId }),
     documentService: createDocumentService({ validations, documents, audit, logger, newId }),
     auditService: createAuditService({ audit }),
+    idempotencyService: createIdempotencyService({ store: createMongoIdempotencyStore(db) }),
     corsOrigin: config.CORS_ORIGIN,
     healthCheck: async () => {
       const [mongoOk, dynamoOk] = await Promise.all([

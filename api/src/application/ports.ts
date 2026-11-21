@@ -46,6 +46,29 @@ export interface AuditRepository {
   listByPhone(phone: string): Promise<AuditEvent[]>;
 }
 
+/** What the idempotency store answers when a request with a key arrives. */
+export type IdempotencyBegin =
+  | { state: 'new' }
+  | { state: 'in_progress' }
+  | { state: 'completed'; value: unknown }
+  | { state: 'mismatch' };
+
+export interface IdempotencyStore {
+  /**
+   * Atomically claims `id` for a request. A claim still IN_PROGRESS but older
+   * than `staleBefore` (its process probably crashed) may be taken over.
+   */
+  begin(
+    id: string,
+    requestHash: string,
+    times: { now: Date; expiresAt: Date; staleBefore: Date },
+  ): Promise<IdempotencyBegin>;
+  /** Stores the result so later requests with the same key get it back. */
+  complete(id: string, value: unknown): Promise<void>;
+  /** Frees the key after a failure so the client can retry with it. */
+  release(id: string): Promise<void>;
+}
+
 /** The subset of a logger the use cases need (pino satisfies it). */
 export interface Logger {
   warn(context: object, message: string): void;

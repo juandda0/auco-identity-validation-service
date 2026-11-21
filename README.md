@@ -11,11 +11,12 @@ On top of the required endpoints it grows into a small "digital notary", inspire
 | Audit event in DynamoDB Local keyed by document and date | [`dynamo-audit-repository.ts`](api/src/infrastructure/persistence/dynamo-audit-repository.ts) |
 | Input validation | Zod schemas, [`schemas.ts`](api/src/presentation/http/schemas.ts) |
 | External API error handling | [`world-bank-countries-client.ts`](api/src/infrastructure/countries/world-bank-countries-client.ts) |
-| At least 3 automated tests | 55 unit/HTTP tests + 4 integration tests against real MongoDB and DynamoDB |
+| At least 3 automated tests | 66 unit/HTTP tests + 5 integration tests against real MongoDB and DynamoDB |
 | README | this file |
 
 | Extra | Where |
 |---|---|
+| Safe retries with the `Idempotency-Key` header | [`idempotency-service.ts`](api/src/application/idempotency-service.ts) |
 | Risk engine (APPROVED / REVIEW / BLOCKED) over the audit trail | [`risk-engine.ts`](api/src/domain/risk-engine.ts) |
 | Promissory note with tamper-evident signature | [`document-service.ts`](api/src/application/document-service.ts) |
 | Audit timeline endpoint | [`audit-routes.ts`](api/src/presentation/http/routes/audit-routes.ts) |
@@ -117,6 +118,27 @@ curl -X POST localhost:3000/validations \
 
 The exercise asks for *name and document*, so those are the only required fields: `curl` with exactly those two works. Country and phone are optional extras.
 
+#### Safe retries: `Idempotency-Key`
+
+A network retry or a double click must not create two validations (nor two audit events). Send an `Idempotency-Key` header, any client-generated unique string such as a UUID, following the IETF draft *The Idempotency-Key HTTP Header Field*:
+
+```bash
+KEY=$(uuidgen)
+curl -X POST localhost:3000/validations -H "Idempotency-Key: $KEY" \
+  -H 'content-type: application/json' -d '{"name": "Ana Gómez", "documentNumber": "1020304050"}'
+# Same request again: same id, header "Idempotent-Replayed: true", nothing new is written
+```
+
+| Situation | Response |
+|---|---|
+| Same key, same body (after normalization: `1.020.304.050` = `1020304050`) | The first response again, `Idempotent-Replayed: true` |
+| Same key, different body | `422 IDEMPOTENCY_KEY_REUSED` |
+| Same key while the first request is still running (double click) | `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` |
+| The operation failed (e.g. 502) | The key is released, so the client can retry with it |
+| No header | Normal behaviour: every request creates a validation |
+
+Keys live in MongoDB: the claim is an atomic `insertOne` on a unique `_id` (of two simultaneous requests exactly one wins), a TTL index removes keys after 24 hours, and a claim abandoned for 30 s (a crashed process) can be taken over. The web app sends a new key per attempt and reuses it when the user retries the same data.
+
 ### `GET /validations/:id`
 
 ```json
@@ -147,7 +169,9 @@ Every error has the same shape: `{"error": {"code": "...", "message": "...", "de
 | 400 | `VALIDATION_ERROR` | Invalid body or id, with per-field `details` |
 | 404 | `NOT_FOUND` | No validation or document with that id |
 | 409 | `VALIDATION_NOT_APPROVED`, `ALREADY_SIGNED`, `DOCUMENT_TAMPERED` | Document rules |
+| 409 | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | Same `Idempotency-Key` still being processed |
 | 422 | `COUNTRY_NOT_FOUND` | The countries API does not recognize the code |
+| 422 | `IDEMPOTENCY_KEY_REUSED` | Same `Idempotency-Key` with a different body |
 | 502 | `UPSTREAM_UNAVAILABLE` | Countries API failed (after one retry) |
 | 503 | `AUDIT_UNAVAILABLE` | DynamoDB failed; the MongoDB write was rolled back |
 | 504 | `UPSTREAM_TIMEOUT` | Countries API took longer than 3 s (after one retry) |
@@ -256,16 +280,16 @@ curl -X POST localhost:3000/documents/<documentId>/sign
 
 ```bash
 cd api && npm ci
-npm test                 # 55 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
+npm test                 # 66 unit + HTTP tests, in-memory fakes, no Docker needed (< 1 s)
 npm run lint && npm run typecheck
 
 docker compose up -d mongo dynamodb
-npm run test:e2e         # 4 integration tests against real MongoDB and DynamoDB Local
+npm run test:e2e         # 5 integration tests against real MongoDB and DynamoDB Local
 ```
 
 - **Unit:** schemas, countries client (payload mapping, unknown code, aggregates, retry, timeout, cache), risk rules, promissory note.
-- **HTTP** (`app.inject`, the real Fastify app with fakes): every status code above, the MongoDB rollback when DynamoDB fails, failed-attempt auditing, the document flow, tamper detection.
-- **Integration:** chronological `Query` by partition key, the phone GSI, conditional writes that refuse to overwrite, and only one winner among concurrent signatures.
+- **HTTP** (`app.inject`, the real Fastify app with fakes): every status code above, the MongoDB rollback when DynamoDB fails, failed-attempt auditing, the document flow, tamper detection, idempotent retries and double clicks.
+- **Integration:** chronological `Query` by partition key, the phone GSI, conditional writes that refuse to overwrite, only one winner among concurrent signatures, and only one winner among concurrent idempotency claims (plus the TTL index).
 - CI (GitHub Actions) runs lint, typecheck, all tests with MongoDB and DynamoDB service containers, and both builds.
 
 ## Project layout
@@ -303,7 +327,6 @@ Found in a review pass and left on purpose, because they need authentication, wh
 
 ## What I would improve with more time
 
-- **Idempotency** (`Idempotency-Key` header), so a retry or double click does not create two validations.
 - **Outbox or DynamoDB Streams** instead of the compensating delete, to remove the crash window.
 - **Race on the risk check:** two simultaneous validations of the same document both read the history before either writes. A conditional write on a per-document counter would close it.
 - **Degraded mode:** store the validation with `enrichment: null` and retry in the background when the countries API is down, instead of rejecting it.

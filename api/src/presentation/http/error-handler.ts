@@ -5,6 +5,7 @@ import {
   AuditUnavailableError,
   ConflictError,
   CountryNotFoundError,
+  IdempotencyKeyReusedError,
   NotFoundError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
@@ -19,6 +20,7 @@ export function httpStatusOf(error: Error): number {
   if (error instanceof NotFoundError) return 404;
   if (error instanceof ConflictError) return 409;
   if (error instanceof CountryNotFoundError) return 422;
+  if (error instanceof IdempotencyKeyReusedError) return 422;
   if (error instanceof UpstreamUnavailableError) return 502;
   if (error instanceof AuditUnavailableError) return 503;
   if (error instanceof UpstreamTimeoutError) return 504;
